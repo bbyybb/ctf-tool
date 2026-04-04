@@ -64,7 +64,7 @@ For scripting and batch processing. / 适合脚本化调用和批量处理。
 
 ---
 
-## Interface Overview / 界面概览
+## Interface Overview / 界面概览 
 
 ### GUI/TUI Sidebar Navigation (8 Modules) / 左侧导航（8 个模块）
 
