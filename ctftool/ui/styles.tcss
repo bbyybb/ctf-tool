@@ -1,0 +1,135 @@
+/* CTF Tool TUI 样式表 */
+
+Screen {
+    background: $surface;
+}
+
+#sidebar {
+    width: 28;
+    background: $panel;
+    border-right: solid $primary;
+    padding: 1;
+}
+
+#sidebar ListView {
+    background: $panel;
+}
+
+#sidebar ListItem {
+    padding: 0 1;
+}
+
+#sidebar ListItem:hover {
+    background: $primary 30%;
+}
+
+#sidebar ListItem.-active {
+    background: $primary 50%;
+}
+
+#main-content {
+    width: 1fr;
+}
+
+#title-bar {
+    dock: top;
+    height: 3;
+    background: $primary;
+    color: $text;
+    content-align: center middle;
+    text-style: bold;
+    padding: 0 2;
+}
+
+#action-select {
+    margin: 1 0;
+}
+
+#input-area {
+    height: auto;
+    max-height: 12;
+    margin: 0 1;
+}
+
+#input-text {
+    height: auto;
+    min-height: 3;
+    max-height: 8;
+    margin: 0;
+}
+
+#params-area {
+    height: auto;
+    margin: 0 1;
+    padding: 1;
+}
+
+#run-button {
+    margin: 1 1;
+    min-width: 16;
+}
+
+#output-text {
+    height: 1fr;
+    margin: 0 1;
+    border: solid $primary;
+}
+
+#export-button {
+    margin: 0 1 1 1;
+    min-width: 12;
+}
+
+#flag-bar {
+    dock: bottom;
+    height: 3;
+    background: $success 20%;
+    border-top: solid $success;
+    padding: 0 2;
+    content-align: left middle;
+}
+
+#flag-bar.has-flag {
+    background: $success 40%;
+}
+
+#status-bar {
+    dock: bottom;
+    height: 1;
+    background: $panel;
+    color: $text-muted;
+    padding: 0 2;
+}
+
+.module-title {
+    text-style: bold;
+    color: $primary;
+    margin: 0 0 1 0;
+}
+
+.param-label {
+    width: 15;
+}
+
+.param-input {
+    width: 1fr;
+}
+
+AutoScanScreen #scan-type {
+    margin: 1;
+}
+
+AutoScanScreen #target-input {
+    margin: 1;
+    min-height: 3;
+}
+
+AutoScanScreen #scan-button {
+    margin: 1;
+}
+
+AutoScanScreen #scan-output {
+    height: 1fr;
+    margin: 1;
+    border: solid $primary;
+}

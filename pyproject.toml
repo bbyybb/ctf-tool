@@ -1,0 +1,61 @@
+[project]
+name = "ctf-tool"
+version = "1.0.0"
+description = "All-in-one CTF toolkit with GUI"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [{name = "bbyybb"}]
+keywords = ["ctf", "security", "crypto", "forensics", "pwn"]
+dependencies = [
+    "PyQt6>=6.6.0",
+    "textual>=0.47.0",
+    "requests>=2.31.0",
+    "pycryptodome>=3.19.0",
+    "Pillow>=10.0.0",
+    "pefile>=2023.2.7",
+    "capstone>=5.0.0",
+    "scapy>=2.5.0",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Topic :: Security",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+]
+
+[project.scripts]
+ctf-tool = "main:main"
+
+[project.optional-dependencies]
+qr = ["pyzbar>=0.1.9"]
+rar = ["rarfile>=4.1"]
+decompile = ["uncompyle6>=3.9.0"]
+hashext = ["hashpumpy>=1.2.1"]
+all = ["pyzbar>=0.1.9", "rarfile>=4.1", "uncompyle6>=3.9.0", "hashpumpy>=1.2.1"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4.0"]
+
+[project.urls]
+Homepage = "https://github.com/bbyybb/ctf-tool"
+Repository = "https://github.com/bbyybb/ctf-tool"
+Issues = "https://github.com/bbyybb/ctf-tool/issues"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = [
+    "E501",   # line too long
+    "E701",   # multiple statements on one line (colon) - used in math guard clauses
+    "E702",   # multiple statements on one line (semicolon)
+    "E741",   # ambiguous variable name - common in crypto/math code (l, n, e, p, q)
+]

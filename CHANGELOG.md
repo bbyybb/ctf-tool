@@ -1,0 +1,307 @@
+# Changelog / 变更日志
+
+All notable changes will be documented here.
+
+所有重要变更都将记录在此。
+
+Format based on [Keep a Changelog](https://keepachangelog.com/).
+
+## [1.0.0] - 2026-03-30
+
+### Fixed / 修复
+- **BUG**: GUI RSAPanel 在工作线程中直接访问 Qt 控件修复（改为主线程读取后传参）/ Fix RSAPanel thread safety: read Qt widgets in main thread before passing to worker
+- **BUG**: GUI 自定义 Flag 弹窗使用了不存在的 i18n 键修复（`msg.saved` → `flag.saved` 等）/ Fix missing i18n keys in custom flag dialog
+- **BUG**: TUI PwnScreen/MiscScreen 同步执行改为 run_worker 异步（避免 UI 阻塞）/ Fix TUI Pwn/Misc screens blocking UI by using async run_worker
+- **安全**: forensics.py NTFS ADS 检测添加路径校验（`os.path.abspath` + 存在性检查）/ Add path validation for NTFS ADS detection subprocess call
+- **安全**: Web 模块 User-Agent 去除工具指纹 `CTFTool/1.0`，改用标准 Chrome UA，支持自定义 / Remove tool fingerprint from User-Agent, use standard Chrome UA, support custom UA
+- crypto.py 两处 `__import__('base64')` 内联调用改用顶部已有的 import / Replace inline `__import__('base64')` with existing top-level import
+- flag_finder.py 清理 4 对冗余大小写 Flag 模式（IGNORECASE 下等价）/ Remove 4 redundant uppercase flag patterns (equivalent under IGNORECASE)
+- utils.py 魔数签名优化：`BZ`(2字节) → `BZh`(3字节)，移除不准确的 `CR`(2字节) / Improve magic signatures: BZ→BZh, remove inaccurate CR
+- 操作历史模块 (`history.py`) 集成到 CLI 和 GUI 中 / Integrate history module into CLI and GUI
+- **BUG**: FlagFinder 全局单例线程安全修复（添加 threading.Lock）/ Fix thread safety for FlagFinder singleton
+- **BUG**: history.py 静默异常改为 logging.warning / Replace silent except with logging
+- **BUG**: unicode_decode 非 ASCII 字符处理修复 / Fix unicode_decode for non-ASCII input
+- **BUG**: CLI 白名单检查前置，所有 cmd 函数添加异常处理 / CLI whitelist check first + exception handling
+- **安全**: HTML 报告导出 XSS 注入修复（`scanner.py` 使用 `html.escape()` 转义动态内容）/ Fix XSS injection in HTML report export
+- **安全**: CLI 模块方法调用添加白名单限制（6 个模块 127 个方法）/ Add method whitelist for CLI `getattr` dispatch
+- **安全**: Web 模块 SSL 验证改为可配置参数 `verify_ssl`（默认 `False`）/ Make SSL verification configurable in WebModule
+- Web 模块添加 `close()` 方法释放 HTTP 连接 / Add `close()` method to WebModule for session cleanup
+- TUI 导出文件时缺少目录创建导致崩溃 / TUI export crash when ~/ctf-tool/ dir missing
+- factordb API 使用 HTTP 改为 HTTPS / factordb API HTTP → HTTPS
+- Pwn addr_convert 冗余条件分支 / Pwn addr_convert redundant branch
+- crypto _extended_gcd 递归改迭代（避免大数栈溢出）/ extended_gcd recursive → iterative
+- Web 模块 SSL 警告抑制 / Suppress InsecureRequestWarning in web module
+- i18n/forensics 文件操作添加 encoding='utf-8' / Add explicit UTF-8 encoding
+- build-release.sh 变量展开修复 / Fix single-quote variable expansion bug
+- update-hashes.sh macOS 兼容（sha256sum → shasum）/ macOS compat for hash script
+- test_blocking_behavior 测试修复（mock QMessageBox 避免弹窗挂起）/ Fix blocking test
+- **BUG**: 核心价值观编解码逻辑不对称修复（改用 12 进制）/ Fix core_values encode/decode asymmetry (use base-12)
+- **BUG**: Pwn `find_pattern_offset` 添加 64 位地址支持 / Add 64-bit address support
+- **BUG**: Pwn `find_rop_gadgets` 输出虚拟地址而非文件偏移 / Output virtual address for ELF files
+- **BUG**: Misc `keyboard_coord_decode` 支持第 10 列（逗号分隔格式）/ Support 10th column via comma format
+- **BUG**: Forensics `zTXt` 块添加 zlib 解压 / Add zlib decompression for PNG zTXt chunks
+
+### Changed / 变更
+- **i18n**: 六大功能模块全面国际化 — crypto/web/forensics/reverse/pwn/misc 约 790 个硬编码中文短语替换为 `t()` 翻译函数调用，新增约 900 个翻译键 / Full i18n for all 6 modules: ~790 hardcoded Chinese strings replaced with `t()` calls, ~900 translation keys added
+- 测试总数从 155 增至 553 / Total tests increased from 155 to 553
+- README 修正测试覆盖声明 / Fix coverage claim in README
+
+### Added / 新增
+- **Crypto**: RSA 自动攻击 — 依次尝试所有 RSA 攻击方式 (`rsa_auto_attack`) / RSA auto attack — try all methods sequentially
+- **Crypto**: 在线哈希反查 (`hash_crack_online`) / Online hash reverse lookup
+- **Crypto**: 编码自动检测与解码 (`detect_encoding`) / Auto detect and decode encoding
+- **Web**: 子域名枚举 (`subdomain_enum`) / Subdomain enumeration
+- **Web**: Web 指纹识别 (`fingerprint`) / Web fingerprint detection (CMS/framework)
+- **Web**: 敏感信息收集 (`info_gather`) / Sensitive info gathering (emails/IPs/API keys)
+- **Forensics**: PCAP 文件自动导出 (`pcap_extract_files`) / Auto extract files from PCAP
+- **Forensics**: LSB 隐写写入 (`lsb_encode`) / LSB steganography encoding
+- **Forensics**: 基于 magic bytes 的文件切割 (`file_carve`) / File carving by magic bytes
+- **Misc**: 多格式时间戳转换 (`timestamp_convert`) / Multi-format timestamp conversion
+- **Misc**: 二维码批量扫描 (`qr_batch_decode`) / Batch QR code scanning
+- **Misc**: 图片 OCR 文字提取 (`ocr_extract`) / Image OCR text extraction
+- **CLI**: `history` 子命令 — 查看/搜索/清空操作历史 / `history` subcommand for viewing/searching/clearing operation history
+- **CLI**: scan 子命令添加 `--output/-o` 和 `--format/-f` 参数 / Add --output and --format to scan subcommands
+- **CLI**: 全局 `--verbose/-v` 选项启用详细日志 / Global --verbose option for debug logging
+- **Core**: 统一配置系统 (`ctftool/core/config.py`) / Unified configuration system
+- **Core**: 自动扫描新增 Base100/JWT 解码、ROP Gadget 搜索 / Scanner adds Base100/JWT decode, ROP gadget search
+- **GUI/TUI**: 所有面板操作列表补全至与 CLI 白名单一致（+107 项）/ Complete all GUI/TUI panel action lists to match CLI whitelist
+- **GUI/TUI**: 自动扫描面板新增"选择文件"按钮和 curl 命令输入框 / Auto scan panel: add file picker and curl input
+- **Docs**: 完整操作手册 (`docs/USAGE.md`) — 所有模块详细使用说明 / Full usage guide with all module documentation
+- CLI 命令行模式 (`python main.py cli <module> <action> <input>`) / CLI command-line mode
+- JSON/HTML 扫描报告导出 (`export_json`, `export_html`) / Scan report export
+- 批量扫描 (`scan_files_batch`, `scan_urls_batch`) / Batch scanning
+- 操作历史记录模块 (`ctftool/core/history.py`) / Operation history module
+- 扫描进度回调机制 / Scan progress callback
+- **Crypto**: RSA 已知 p,q 直接解密 / RSA direct decrypt with known p,q
+- **Crypto**: RSA Pollard rho 分解 / Pollard rho factorization
+- **Crypto**: Vigenere 密钥长度推测（Kasiski + IC）/ Vigenere key length analysis
+- **Crypto**: 哈希长度扩展攻击辅助 / Hash length extension attack helper
+- **Crypto**: AES-ECB/CBC 加密、DES-ECB 加密 / AES/DES encrypt
+- **Crypto**: `rsa_decrypt_small_e` 支持任意小 e / Support any small e
+- **Crypto**: `auto_decode` 加入 Base58/Base85 / Add Base58/Base85 to auto decode
+- **Forensics**: USB 鼠标流量解析（含轨迹图）/ USB mouse traffic decode with trace plot
+- **Forensics**: GIF 帧分离 / GIF frame extraction
+- **Forensics**: 高级 LSB 隐写提取（多位平面、通道顺序）/ Advanced LSB extraction
+- **Forensics**: RAR 密码爆破 / RAR password crack
+- **Reverse**: ARM/MIPS 架构反汇编（自动检测 ELF e_machine）/ ARM/MIPS disassembly
+- **Pwn**: ret2syscall 模板 / ret2syscall template
+- **Pwn**: SROP 模板 / SROP template
+- **Pwn**: Shellcode 坏字符检测 / Bad character detection
+- **Pwn**: GOT 覆写模板 / GOT overwrite template
+- **Pwn**: ROP gadget 扩展（64位 gadgets）/ Extended ROP gadgets (x64)
+- **Misc**: 核心价值观编解码 / Core values encode/decode
+- **Misc**: DNA 密码编解码 / DNA cipher
+- **Misc**: 猪圈密码参考表 / Pigpen cipher reference
+- **Misc**: 条形码解码 / Barcode decode
+- **Misc**: Ook! 直接执行 / Ook! direct execute
+- **Crypto**: Playfair 密码加解密 / Playfair cipher encrypt & decrypt
+- **Crypto**: Polybius 方阵加解密 / Polybius square encrypt & decrypt
+- **Crypto**: XOR 多字节自动破解（汉明距离法）/ XOR multi-byte auto crack
+- **Crypto**: Padding Oracle 攻击脚本模板 / Padding Oracle attack template
+- **Crypto**: ROT47 编解码 / ROT47 encode/decode
+- **Crypto**: Base58 编码, Base85 编码 / Base58 & Base85 encode
+- **Crypto**: Hill 密码加解密 (2x2/3x3) / Hill cipher encrypt & decrypt
+- **Crypto**: 列置换密码加解密 / Columnar transposition cipher
+- **Crypto**: AES-CTR 模式加解密 / AES-CTR mode encrypt & decrypt
+- **Crypto**: CRC32 校验（支持文件和文本）/ CRC32 checksum
+- **Crypto**: HMAC 计算 (MD5/SHA1/SHA256/SHA512) / HMAC computation
+- **Crypto**: RSA 多素数解密 / RSA multi-prime decrypt
+- **Crypto**: Base91 编解码 / Base91 encode & decode
+- **Crypto**: `identify_hash` 增加 CRC32/NTLM/RIPEMD-160 识别 / Enhanced hash identification
+- **Crypto**: `compute_hash` 增加 CRC32/SHA3-256/BLAKE2b / Enhanced hash computation
+- **Crypto**: `hex_decode` 支持冒号分隔格式 / Support colon-separated hex
+- **Web**: POST 请求支持 / POST request support
+- **Web**: JWT 自定义字典爆破 / JWT custom wordlist crack
+- **Web**: 多线程目录扫描 (10 并发) / Multi-threaded directory scan
+- **Web**: XXE 检测 / XXE detection
+- **Web**: CORS 配置错误检测 / CORS misconfiguration detection
+- **Web**: 时间盲注 + XXE + SSRF payload 生成 / Time-based SQLi + XXE + SSRF payloads
+- **Forensics**: 音频频谱图分析 (WAV) / Audio spectrogram analysis
+- **Forensics**: PDF 文件分析（JS/嵌入文件/链接/加密）/ PDF analysis
+- **Forensics**: PCAP HTTP 流提取 / PCAP HTTP stream extraction
+- **Forensics**: 位平面全分析 (R/G/B × 8 位 = 24 张图) / Bit plane analysis (Stegsolve-like)
+- **Forensics**: 文件签名库扩充至 51 种 / Expand file signatures to 51
+- **Forensics**: ZIP 密码字典扩充至 ~2 万条 / Expand ZIP password dictionary
+- **Reverse**: PE 64 位自动检测 / PE 64-bit auto detection
+- **Reverse**: PE checksec (DEP/ASLR/CFG/SafeSEH/GS) / PE security protection check
+- **Pwn**: 堆利用模板 (tcache/fastbin/house_of_force) / Heap exploit templates
+- **Pwn**: one_gadget 使用指南 / one_gadget usage guide
+- **Pwn**: 自定义坏字符列表 / Custom bad characters list
+- **Misc**: ROT47 编解码 / ROT47 encode/decode
+- **Misc**: Whitespace 语言解释器 / Whitespace language interpreter
+- **Misc**: Base100 (Emoji) 编解码 / Base100 emoji encode/decode
+- **Misc**: 敲击码编解码 / Tap code encode & decode
+- **Misc**: 培根密码编码 / Bacon cipher encode
+- **Misc**: Vigenere 自动破解 / Vigenere auto crack
+- **Misc**: QR 码生成 / QR code generation
+- **Misc**: 社工字典文件导出 / Wordlist file export
+- **Crypto**: ECC 椭圆曲线运算与攻击辅助 (Smart/MOV/Pohlig-Hellman) / ECC point operations & attack helper
+- **Crypto**: 离散对数 BSGS + Pohlig-Hellman 算法 / DLP Baby-step Giant-step & Pohlig-Hellman
+- **Crypto**: Mersenne Twister (MT19937) 状态恢复与预测 / MT19937 state recovery & prediction
+- **Crypto**: 3DES (Triple DES) 加解密 / 3DES encrypt & decrypt
+- **Crypto**: 替换密码频率分析自动破解 / Substitution cipher auto crack
+- **Crypto**: ADFGVX 密码解密 / ADFGVX cipher decrypt
+- **Crypto**: Bifid 密码加解密 / Bifid cipher encrypt & decrypt
+- **Crypto**: Four-square 密码解密 / Four-square cipher decrypt
+- **Web**: Open Redirect 开放重定向检测 / Open redirect detection
+- **Web**: CRLF 注入检测 / CRLF injection detection
+- **Web**: 反序列化漏洞辅助 (PHP/Java/Python/.NET/Ruby/Node) / Deserialization helper
+- **Forensics**: DTMF 拨号音解码 (Goertzel 算法) / DTMF audio decode
+- **Forensics**: Office 文档分析 (OLE/OOXML 宏/嵌入对象) / Office document analysis
+- **Forensics**: 内存 Dump 基础分析 (URL/IP/Flag/路径提取) / Memory dump analysis
+- **Reverse**: 加壳检测 (UPX/Themida/VMProtect/PyInstaller 等) / Packer detection
+- **Reverse**: 导入/导出表列出 (PE pefile + ELF 函数检测) / Import/export table listing
+- **Misc**: 旗语 (Semaphore) 编解码 / Semaphore flag encode & decode
+- **Misc**: NATO 音标字母编解码 / NATO phonetic alphabet
+- **Misc**: 坐标系转换 (十进制/度分秒/Geohash) / Coordinate system conversion
+- **Misc**: Leet Speak (1337) 编解码 / Leet speak encode & decode
+- **Misc**: Baudot/ITA2 电传打字机解码 / Baudot/ITA2 decode
+- **Crypto**: 中国剩余定理 (CRT) 独立工具 / Chinese Remainder Theorem solver
+- **Crypto**: RSA dq 泄露攻击 / RSA dq leak attack
+- **Crypto**: Blowfish ECB 加解密 / Blowfish ECB encrypt & decrypt
+- **Crypto**: Base62 编解码 / Base62 encode & decode
+- **Crypto**: Autokey 密码解密 / Autokey cipher decrypt
+- **Crypto**: Nihilist 密码解密 / Nihilist cipher decrypt
+- **Crypto**: Book/字典密码解码 / Book cipher decode
+- **Crypto**: Rabbit 流密码辅助 / Rabbit stream cipher helper
+- **Web**: 目录遍历增强检测 / Enhanced path traversal detection
+- **Web**: HTTP 请求走私检测 / HTTP request smuggling detection
+- **Web**: 原型链污染辅助 / Prototype pollution helper
+- **Web**: 竞争条件辅助 / Race condition helper
+- **Web**: WAF 检测与识别 / WAF detection & identification
+- **Forensics**: NTFS ADS 备用数据流检测 / NTFS Alternate Data Stream detection
+- **Forensics**: EXIF 篡改检测 / EXIF tampering detection
+- **Forensics**: 磁盘镜像基础分析 (MBR/GPT) / Disk image analysis
+- **Forensics**: Email 邮件头分析 / Email header analysis
+- **Forensics**: Windows 注册表分析 / Windows registry analysis
+- **Forensics**: 文件时间线分析 / File timeline analysis
+- **Forensics**: DNS 隧道检测 (PCAP) / DNS tunnel detection in PCAP
+- **Reverse**: Android APK 基础分析 / Android APK analysis
+- **Reverse**: .NET 程序集分析 / .NET assembly analysis
+- **Reverse**: Go 二进制分析辅助 / Go binary analysis helper
+- **Reverse**: YARA 规则匹配 / YARA rule scanning
+- **Reverse**: 反混淆字符串解密辅助 / String deobfuscation helper
+- **Reverse**: Rust 二进制分析辅助 / Rust binary analysis helper
+- **Pwn**: ret2csu 利用模板 / ret2csu exploit template
+- **Pwn**: Stack Pivot 栈迁移模板 / Stack pivot template
+- **Pwn**: seccomp 沙箱分析辅助 / seccomp sandbox helper
+- **Pwn**: IO_FILE 利用模板 / IO_FILE exploit template
+- **Pwn**: House of Orange 利用模板 / House of Orange template
+- **Misc**: Emoji 替换密码编解码 / Emoji substitution cipher
+- **Misc**: Manchester 编码解码 / Manchester encoding
+- **Misc**: 颜色十六进制解码 / Color hex decode
+- **Misc**: 跳舞小人密码 / Dancing men cipher
+- **Misc**: 文本字频统计 / Word frequency analysis
+- **Misc**: Enigma 密码机模拟器 / Enigma cipher simulator
+- **Misc**: 图片像素提取文本 / Pixel text extraction
+- **Misc**: 键盘布局转换 (QWERTY/Dvorak/Colemak) / Keyboard layout conversion
+- 自动扫描增强：URL 新增 6 项检测，文本新增 3 种解码 / Enhanced auto scanner
+- Flag 格式新增 14 个国内外赛事前缀 / Add 14 CTF competition flag prefixes
+- **Web**: 所有检测方法支持 POST body 参数注入测试 / POST parameter injection support
+- **Web**: 新增 configure() 方法配置 headers/cookies/proxy/auth / HTTP context configuration
+- **Web**: 新增 parse_curl() 解析 curl 命令自动配置请求 / Parse curl command to auto-configure
+- **Web**: 漏洞检测增加自动 flag 获取（SQLi UNION/LFI 读 flag 文件/SSTI RCE/CMDi cat flag/XXE 读 flag）/ Auto flag exploitation
+- **FlagFinder**: 递归解码新增 Base32 和 ROT13 / Add Base32 & ROT13 to recursive decode
+- **增强**: identify_hash 追加破解工具建议 / Add cracking tool suggestions
+- **增强**: auto_decode 自动检测解码结果中的 flag / Auto flag detection in decode results
+- **增强**: identify_file 根据文件类型推荐下一步分析工具 / Next-step tool recommendations
+- **增强**: binwalk_scan 追加文件提取建议 / Add extraction suggestions
+- **增强**: detect_stego 嵌套文件追加提取命令 / Add extraction commands for embedded files
+- **增强**: pcap_analyze 追加进一步分析建议 / Add further analysis suggestions
+- **增强**: check_elf_protections 每项保护追加针对性利用建议和推荐利用路线 / Per-protection exploit suggestions
+- **增强**: analyze_binary 追加逆向分析下一步建议 / Add reverse engineering next-step tips
+- **增强**: disassemble 标注危险函数调用和系统调用 / Mark dangerous function calls
+- **增强**: jwt_decode 根据 alg 字段给出攻击建议 / JWT attack suggestions based on algorithm
+- **增强**: qr_decode 自动检测 flag 和 URL / Auto detect flags and URLs in QR content
+- main.py 支持 --version 参数 / Add --version CLI argument
+- TUI 全面国际化支持（screens.py 使用 i18n.t()）/ Full i18n support for TUI screens
+- 新增 scanner 模块单元测试（20 tests）/ Add scanner module unit tests
+- 新增 i18n 模块单元测试（20 tests）/ Add i18n module unit tests
+- pyproject.toml 添加 [project.dependencies] / Add dependencies to pyproject.toml
+- pyproject.toml 添加可选依赖声明（pyzbar/rarfile/uncompyle6/hashpumpy）/ Add optional-dependencies to pyproject.toml
+- pyproject.toml 添加 ruff 配置 / Add ruff linter configuration
+- .gitignore 添加 ctf-tool-*/ release 目录模式 / Add release dir pattern to .gitignore
+- .gitignore 补充 `.env`/`*.log`/`.mypy_cache`/`.ruff_cache` / Expand .gitignore rules
+- CI 新增 ruff lint 检查步骤 / Add ruff lint job to CI
+- CI 测试矩阵扩展：3 OS (Ubuntu/Windows/macOS) × 3 Python (3.10/3.11/3.12) / Expand CI test matrix
+- README 新增配置说明章节（配置文件路径 + 可选依赖安装）/ Add Configuration section to README
+- CONTRIBUTING 新增代码风格工具、分支策略、Commit 规范 / Add code style, branch strategy, commit convention to CONTRIBUTING
+- SECURITY 新增支持版本表、安全联系邮箱、响应时间线 / Add supported versions, security email, response timeline to SECURITY
+- **Crypto**: Rabin 密码解密 (e=2) / Rabin cipher decrypt
+- **Crypto**: 批量 GCD 攻击（多 n 共享素因子）/ Batch GCD attack
+- **Crypto**: Franklin-Reiter 相关消息攻击 / Franklin-Reiter related message attack
+- **Crypto**: Coppersmith 攻击辅助（SageMath 模板）/ Coppersmith attack helper
+- **Crypto**: Boneh-Durfee 攻击辅助（SageMath 模板）/ Boneh-Durfee attack helper
+- **Crypto**: Williams p+1 分解 / Williams p+1 factorization
+- **Crypto**: `rsa_auto_attack` 补全 dp/dq/Hastad/Rabin/Williams 攻击 / Complete rsa_auto_attack with all implemented attacks
+- **Web**: SVN 泄露检测 / SVN leak detection
+- **Web**: .DS_Store 泄露检测 / .DS_Store leak detection
+- **Web**: 备份文件检测 (.bak/.swp/.old 等) / Backup file detection
+- **Web**: .env 文件泄露检测 / .env file leak detection
+- **Web**: GraphQL 自省检测 / GraphQL introspection detection
+- **Web**: Host 头注入检测 / Host header injection detection
+- **Web**: JSONP 劫持检测 / JSONP hijacking detection
+- **Forensics**: Steghide 提取与密码爆破 / Steghide extract with password crack
+- **Forensics**: Zsteg 式自动扫描（纯 Python）/ Zsteg-style auto scan (pure Python)
+- **Forensics**: 盲水印提取（FFT 频域分析）/ Blind watermark extraction (FFT)
+- **Forensics**: APNG 帧提取 / APNG frame extraction
+- **Forensics**: SSTV 慢扫描电视解码辅助 / SSTV decode helper
+- **Misc**: UUencode / UUdecode 编解码 / UUencode & UUdecode
+- **Misc**: XXencode / XXdecode 编解码 / XXencode & XXdecode
+- **Misc**: Quoted-Printable 编解码 / Quoted-Printable encode & decode
+- **Misc**: 音频摩尔斯解码（WAV 分析）/ Audio Morse decode from WAV
+- **Misc**: Piet 图像语言辅助 / Piet programming language helper
+- **Misc**: Malbolge 执行器 / Malbolge interpreter
+- **Misc**: EBCDIC / ASCII 互转 / EBCDIC to ASCII conversion
+- **GUI**: 操作下拉框支持搜索过滤（模糊匹配）/ Action combo box with search filter
+- **GUI**: 自动扫描进度条 / Auto scan progress bar
+- **Crypto**: RSA 密钥文件导入 (PEM/DER) / RSA key import from PEM/DER files
+- **Crypto**: 哈希碰撞生成 (MD5/SHA1/CRC32) / Hash collision generation
+- **Crypto**: 密码强度评估（评分+破解时间估算）/ Password strength assessment
+- **Web**: Swagger/OpenAPI 接口文档探测 / Swagger/OpenAPI detection
+- **Web**: SQLi 自动化利用链（6步完整链）/ SQLi auto exploit chain (6-step)
+- **Forensics**: 隐写术全扫描（8项检测汇总）/ Steganography full scan (8 checks)
+- **Forensics**: 精确文件切割（6种格式头尾标记）/ Precise file carving (6 formats)
+- **Forensics**: 内存取证增强（9类信息提取）/ Memory forensics enhanced (9 categories)
+- **GUI**: 输出语法高亮（Flag/URL/IP 彩色显示）/ Output syntax highlighting
+- **Core**: i18n 翻译外置为 JSON 文件（i18n.py 3324→78 行）/ Externalize i18n translations to JSON
+- **GUI**: curl 输入框改为多行（支持直接粘贴 Chrome/Postman 多行 curl）/ Multiline curl input with auto-parse
+- **GUI**: Web 和自动扫描面板新增 Headers/POST Data 回显输入框 / Headers & POST Data display fields
+- **GUI**: curl 解析支持 --data-raw/--data-binary/--location 等所有常见格式 / Full curl format support
+- **Web**: 目录列表递归爬取（自动发现隐藏文件和 flag）/ Directory listing recursive crawl
+- **Web**: robots.txt 增强 — 发现路径后自动访问并检查 flag / Enhanced robots.txt with auto path visiting
+- **Web**: Git 泄露增强 — 自动恢复历史 commit 中的文件并搜索 flag / Enhanced git leak: auto-restore files from commit history
+- **Web**: SVN 泄露增强 — 自动解析 wc.db 并恢复文件内容 / Enhanced SVN leak: auto-parse wc.db and restore files
+- **GUI/TUI**: 每次执行/扫描前自动清零 Flag 状态栏 / Auto-clear flag status bar before each run/scan
+- **Web**: 备份文件检测增强 — 自动下载 ZIP/TAR 并解压分析内容，访问发现的文件搜索 flag / Enhanced backup detection: auto-download, extract, and analyze
+- **Web**: 备份文件名扩充至 80+ 种组合（16 名称 × 5 后缀）/ Expand backup file names to 80+ combinations
+- **Core**: 默认语言改为英文（检测失败时 fallback 为英文）/ Default language changed to English when detection fails
+- **Web**: SQL 时间盲注自动化提取（支持数字型/字符型，二分法逐字符提取）/ SQLi time-based blind injection
+- **Web**: SQLi 自动利用链修复 — 支持字符型注入+多种注释符+精确列数检测 / Fix sqli_auto_exploit for string injection
+- **Build**: PyInstaller 添加 --windowed 参数，双击 exe 不再弹出控制台窗口 / Add --windowed flag, no console on double-click
+- **GUI**: 时间盲注实时进度显示（每提取一个字符即刷新输出）/ Real-time progress display for time-based blind injection
+- **Pwn**: 自动 ret2text 分析（自动找后门函数+计算偏移+生成 exploit）/ Auto ret2text analysis
+- **Pwn**: 自动 ret2shellcode 分析（NX 关闭时自动生成 shellcode exploit）/ Auto ret2shellcode analysis
+- **Pwn**: 综合 Pwn 分析（checksec+漏洞定位+推荐利用路线+生成脚本）/ Auto comprehensive Pwn analysis
+- **GUI**: 修复 4 个严重参数传递 bug（caesar_decrypt/rail_fence_decrypt/triple_des/one_gadget_helper）/ Fix 4 critical parameter passing bugs
+- **GUI**: Pwn 面板新增 Remote 输入框（auto_* 操作时显示）/ Add Remote input field for Pwn auto analysis
+- **GUI**: Misc 面板修复 zwc_encode/enigma_decrypt/keyboard_layout_convert 参数解析 / Fix Misc panel parameter parsing
+
+### Initial Release Features / 初始发布功能
+- PyQt6 desktop GUI with Catppuccin dark theme / PyQt6 桌面 GUI（暗色主题）
+- TUI mode via `--tui` flag / 终端 TUI 模式
+- Chinese/English language switch with persistent storage / 中英文切换（永久保存）
+- **Crypto / 密码学**: Base64/32/58/85, Hex, URL, Caesar, Vigenere, Affine, Rail Fence, Atbash, Bacon, AES-ECB/CBC, DES, RC4, XOR bruteforce
+- **Crypto / RSA**: Small e, common modulus, Wiener, Fermat, Pollard p-1, dp leak, Hastad broadcast, factordb online lookup
+- **Web / Web 安全**: SQLi/XSS/LFI/CMDi/SSRF/SSTI detection, JWT none forge & weak key crack, payload generation
+- **Forensics / 取证**: File ID, stego (LSB, PNG trailing, JPEG trailing, WAV), PNG CRC width/height repair, image channel split, EXIF GPS, ZIP crack & fake decrypt, file header repair, PCAP analysis, USB keyboard decode, binwalk carving
+- **Reverse / 逆向**: PE/ELF analysis, checksec (NX/RELRO/PIE/Canary), disassembly (capstone), .pyc decompile
+- **Pwn**: De Bruijn pattern, buffer overflow, format string, ROP gadgets, shellcode, pwntools & ret2libc templates
+- **Misc / 杂项**: Morse, Braille, T9 keyboard, keyboard coordinates, zero-width stego, PHP deserialization, Brainfuck/Ook!, JWT, QR, wordlist generator
+- Auto flag detection with recursive decode / 自动 Flag 检测（递归解码）
+- Custom flag format with persistent storage / 自定义 Flag 格式（永久存储）
+- Auto scanner: URL/File/Text auto-dispatch / 自动扫描调度
+- Support/donate dialog (WeChat/Alipay/BuyMeACoffee) / 打赏弹窗
+- Three-layer anti-tampering protection / 三层防篡改保护
+- 537 unit & integration tests / 537 个单元与集成测试
+- CI/CD: GitHub Actions multi-platform build (Win/macOS/Linux) / 四平台 CI/CD

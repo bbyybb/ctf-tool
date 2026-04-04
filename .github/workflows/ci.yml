@@ -1,0 +1,247 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  # ========== 代码检查 ==========
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Run ruff check
+        run: ruff check ctftool/ tests/
+
+  # ========== 测试（多版本 + 跨平台）==========
+  test:
+    name: Test (Python ${{ matrix.python-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run tests
+        run: python -m pytest tests/ -v ${{ (matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12') && '--cov=ctftool --cov-report=xml --cov-report=term-missing' || '' }}
+        env:
+          QT_QPA_PLATFORM: offscreen
+
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  # ========== 跨平台构建（4个目标）==========
+  build:
+    name: Build (${{ matrix.target }})
+    needs: [lint, test]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: windows-x64
+            os: windows-latest
+            ext: .exe
+            archive_ext: .zip
+            can_test: true
+
+          - target: macos-arm64
+            os: macos-latest          # Apple Silicon (M1/M2/M3/M4) runner
+            ext: ''
+            archive_ext: .tar.gz
+            can_test: true
+
+          # macOS Intel: 使用 macos-13 (GitHub 最后一代 Intel x86_64 runner)
+          # PyInstaller 无法交叉编译，必须在目标架构上原生构建
+          - target: macos-x64
+            os: macos-13              # Intel x86_64 runner
+            ext: ''
+            archive_ext: .tar.gz
+            can_test: true
+
+          - target: linux-x64
+            os: ubuntu-latest
+            ext: ''
+            archive_ext: .tar.gz
+            can_test: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Get version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(python -c "from ctftool import __version__; print(__version__)")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+
+      - name: Build with PyInstaller
+        shell: bash
+        run: |
+          # Windows uses ";" as --add-data separator, Unix uses ":"
+          if [ "$RUNNER_OS" = "Windows" ]; then SEP=";"; else SEP=":"; fi
+          pyinstaller \
+            --onefile \
+            --windowed \
+            --icon=docs/icon.ico \
+            --name ctf-tool \
+            --add-data "docs${SEP}docs" \
+            --add-data "ctftool/ui/styles.tcss${SEP}ctftool/ui" \
+            --add-data "ctftool/core/i18n_en.json${SEP}ctftool/core" \
+            --add-data "ctftool/core/i18n_zh.json${SEP}ctftool/core" \
+            --hidden-import ctftool.modules.crypto \
+            --hidden-import ctftool.modules.web \
+            --hidden-import ctftool.modules.forensics \
+            --hidden-import ctftool.modules.reverse \
+            --hidden-import ctftool.modules.pwn \
+            --hidden-import ctftool.modules.misc \
+            --hidden-import ctftool.core.flag_finder \
+            --hidden-import ctftool.core.scanner \
+            --hidden-import ctftool.core.utils \
+            --hidden-import ctftool.core.integrity \
+            --hidden-import ctftool.core.i18n \
+            --hidden-import capstone \
+            --hidden-import pefile \
+            --hidden-import scapy \
+            main.py
+
+      # 打包（带版本号）
+      - name: Package (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          ARCHIVE="ctf-tool-${{ matrix.target }}-v${{ steps.version.outputs.version }}"
+          mkdir -p "${ARCHIVE}"
+          cp dist/ctf-tool "${ARCHIVE}/"
+          cp README.md LICENSE CHANGELOG.md "${ARCHIVE}/"
+          cp -r docs "${ARCHIVE}/"
+          tar -czf "${ARCHIVE}.tar.gz" "${ARCHIVE}/"
+          echo "ASSET=${ARCHIVE}.tar.gz" >> $GITHUB_ENV
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $archive = "ctf-tool-${{ matrix.target }}-v${version}"
+          New-Item -ItemType Directory -Path $archive -Force
+          Copy-Item "dist/ctf-tool.exe" "$archive/"
+          Copy-Item "README.md", "LICENSE", "CHANGELOG.md" "$archive/"
+          Copy-Item -Recurse "docs" "$archive/"
+          Compress-Archive -Path "$archive" -DestinationPath "${archive}.zip"
+          echo "ASSET=${archive}.zip" >> $env:GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctf-tool-${{ matrix.target }}
+          path: ${{ env.ASSET }}
+
+  # ========== 代码安全扫描 ==========
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  # ========== 自动发布 Release（tag 触发）==========
+  release:
+    name: Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: List artifacts
+        run: find artifacts/ -type f | sort
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
+          body: |
+            ## Downloads
+
+            | Platform | File |
+            |----------|------|
+            | Windows (x64) | `ctf-tool-windows-x64-${{ github.ref_name }}.zip` |
+            | macOS (Apple Silicon M1/M2/M3) | `ctf-tool-macos-arm64-${{ github.ref_name }}.tar.gz` |
+            | macOS (Intel) | `ctf-tool-macos-x64-${{ github.ref_name }}.tar.gz` |
+            | Linux (x64) | `ctf-tool-linux-x64-${{ github.ref_name }}.tar.gz` |
+
+            Extract and run:
+            ```bash
+            ./ctf-tool          # GUI mode
+            ./ctf-tool --tui    # Terminal mode
+            ```
+
+            ## Support
+
+            - [Buy Me a Coffee](https://www.buymeacoffee.com/bbyybb)
+            - [GitHub Sponsors](https://github.com/sponsors/bbyybb)
