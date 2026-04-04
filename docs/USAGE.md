@@ -1,611 +1,612 @@
-# CTF-Tool 操作手册 / Usage Guide
+# CTF-Tool Usage Guide / 操作手册
 
-> CTF-Tool v1.0.0 — 全场景 CTF 检测与 Flag 发现工具
+> CTF-Tool v1.0.0 — All-in-one CTF detection & flag discovery tool
 >
-> made by: 白白LOVE尹尹
+> CTF-Tool v1.0.0 — 全场景 CTF 检测与 Flag 发现工具
 
 ---
 
-## 目录
+## Table of Contents / 目录
 
-- [启动方式](#启动方式)
-- [界面概览](#界面概览)
-- [自动扫描模块](#自动扫描模块)
-- [密码学模块 (Crypto)](#密码学模块-crypto)
-- [Web 安全模块](#web-安全模块)
-- [取证分析模块 (Forensics)](#取证分析模块-forensics)
-- [逆向工程模块 (Reverse)](#逆向工程模块-reverse)
-- [Pwn 模块](#pwn-模块)
-- [杂项模块 (Misc)](#杂项模块-misc)
-- [RSA 攻击模块](#rsa-攻击模块)
-- [CLI 命令行模式](#cli-命令行模式)
-- [配置说明](#配置说明)
-- [常见问题](#常见问题)
+- [Launch Modes / 启动方式](#launch-modes--启动方式)
+- [Interface Overview / 界面概览](#interface-overview--界面概览)
+- [Auto Scan Module / 自动扫描模块](#auto-scan-module--自动扫描模块)
+- [Crypto Module / 密码学模块](#crypto-module--密码学模块)
+- [Web Security Module / Web 安全模块](#web-security-module--web-安全模块)
+- [Forensics Module / 取证分析模块](#forensics-module--取证分析模块)
+- [Reverse Engineering Module / 逆向工程模块](#reverse-engineering-module--逆向工程模块)
+- [Pwn Module / Pwn 模块](#pwn-module--pwn-模块)
+- [Misc Module / 杂项模块](#misc-module--杂项模块)
+- [RSA Attack Module / RSA 攻击模块](#rsa-attack-module--rsa-攻击模块)
+- [CLI Mode / 命令行模式](#cli-mode--命令行模式)
+- [Configuration / 配置说明](#configuration--配置说明)
+- [FAQ / 常见问题](#faq--常见问题)
 
 ---
 
-## 启动方式
+## Launch Modes / 启动方式
 
-### GUI 桌面模式（默认）
+### GUI Desktop Mode (Default) / GUI 桌面模式（默认）
 
 ```bash
 python main.py
 ```
 
+Launches the PyQt6 desktop interface with sidebar navigation, I/O panels, and auto flag detection.
+
 启动 PyQt6 桌面界面，包含侧边栏导航、输入输出区域、Flag 自动检测。
 
-### TUI 终端模式
+### TUI Terminal Mode / TUI 终端模式
 
 ```bash
 python main.py --tui
 ```
 
+Launches the Textual terminal UI, suitable for headless environments (SSH, remote servers).
+
 启动 Textual 终端界面，适合无图形环境（SSH 远程服务器等）。
 
-### CLI 命令行模式
+### CLI Command-Line Mode / CLI 命令行模式
 
 ```bash
-python main.py cli <模块> <操作> <输入> [选项]
+python main.py cli <module> <action> <input> [options]
 ```
 
-适合脚本化调用和批量处理。
+For scripting and batch processing. / 适合脚本化调用和批量处理。
 
-### 可执行文件
+### Executable / 可执行文件
 
 ```bash
-./ctf-tool.exe                    # GUI（默认）
-./ctf-tool.exe --tui              # TUI
-./ctf-tool.exe cli crypto rot13 "Hello"  # CLI
+./ctf-tool          # GUI (default)
+./ctf-tool --tui    # TUI
+./ctf-tool cli crypto rot13 "Hello"  # CLI
 ```
 
 ---
 
-## 界面概览
+## Interface Overview / 界面概览
 
-### GUI/TUI 左侧导航（8 个模块）
+### GUI/TUI Sidebar Navigation (8 Modules) / 左侧导航（8 个模块）
 
-| 编号 | 模块 | 说明 |
-|------|------|------|
-| 0 | 自动扫描 | 一键全面检测（URL/文件/文本） |
-| 1 | 密码学 (Crypto) | 编解码、古典密码、现代加密、哈希 |
-| 2 | Web 安全 | 漏洞检测、指纹识别、信息收集 |
-| 3 | 取证 (Forensics) | 文件分析、隐写术、流量分析、文档取证 |
-| 4 | 逆向 (Reverse) | 二进制分析、反汇编、保护检测 |
-| 5 | Pwn | 溢出利用、格式化字符串、ROP、模板生成 |
-| 6 | 杂项 (Misc) | 各类编码、esoteric 语言、工具函数 |
-| 7 | RSA 攻击 | 专用 RSA 参数输入 + 多种攻击方式 |
+| # | Module / 模块 | Description / 说明 |
+|---|---|---|
+| 0 | Auto Scan / 自动扫描 | One-click scan (URL/File/Text) / 一键全面检测 |
+| 1 | Crypto / 密码学 | Encoding, classical ciphers, modern crypto, hash / 编解码、古典密码、现代加密、哈希 |
+| 2 | Web Security / Web 安全 | Vulnerability detection, fingerprint, recon / 漏洞检测、指纹识别、信息收集 |
+| 3 | Forensics / 取证 | File analysis, steganography, traffic, docs / 文件分析、隐写术、流量分析、文档取证 |
+| 4 | Reverse / 逆向 | Binary analysis, disassembly, protection check / 二进制分析、反汇编、保护检测 |
+| 5 | Pwn | Buffer overflow, format string, ROP, templates / 溢出利用、格式化字符串、ROP、模板生成 |
+| 6 | Misc / 杂项 | Various encodings, esoteric languages, utilities / 各类编码、esoteric 语言、工具函数 |
+| 7 | RSA Attack / RSA 攻击 | Dedicated RSA parameter input + attack methods / 专用 RSA 参数输入 + 多种攻击方式 |
 
-### 通用操作流程
+### General Workflow / 通用操作流程
 
-1. 在左侧选择模块
-2. 从顶部下拉菜单选择操作
-3. 在输入框输入文本 / 选择文件
-4. 点击"运行"按钮
-5. 在输出区查看结果，Flag 会自动高亮显示
+1. Select a module from the sidebar / 在左侧选择模块
+2. Choose an action from the dropdown / 从顶部下拉菜单选择操作
+3. Enter text or select a file / 在输入框输入文本 / 选择文件
+4. Click "Run" / 点击"运行"按钮
+5. View results; flags are auto-highlighted / 在输出区查看结果，Flag 会自动高亮显示
 
-### 通用按钮
+### Common Buttons / 通用按钮
 
-- **运行** — 执行当前操作
-- **选择文件** — 打开文件选择对话框（Forensics/Reverse 等文件类模块）
-- **复制** — 复制输出内容到剪贴板
-- **导出** — 将结果保存为 .txt 文件
-- **发送到 Crypto** — 将输出发送到密码学模块的输入框（方便链式解密）
+- **Run / 运行** — Execute the current action / 执行当前操作
+- **Select File / 选择文件** — Open file picker (for Forensics/Reverse) / 打开文件选择对话框
+- **Copy / 复制** — Copy output to clipboard / 复制输出内容到剪贴板
+- **Export / 导出** — Save results as .txt file / 将结果保存为 .txt 文件
+- **Send to Crypto / 发送到 Crypto** — Send output to Crypto module input (chain decryption) / 将输出发送到密码学模块
 
 ---
 
-## 自动扫描模块
+## Auto Scan Module / 自动扫描模块
+
+The Auto Scan is CTF-Tool's core feature, running all relevant checks in one click to find flags.
 
 自动扫描是 CTF-Tool 的核心功能，可一键运行所有相关检测，自动寻找 Flag。
 
-### 操作步骤
+### Steps / 操作步骤
 
-1. 选择扫描类型：URL 扫描 / 文件扫描 / 文本扫描
-2. 输入目标：
-   - **URL 扫描**：输入完整 URL（如 `http://target.com/`）
-   - **文件扫描**：输入文件路径或点击"选择文件"按钮
-   - **文本扫描**：直接粘贴密文/编码文本
-3. （可选）在 curl 输入框粘贴 curl 命令，自动配置 Cookie/Header/代理
-4. 点击"开始扫描"
+1. Select scan type: URL / File / Text / 选择扫描类型
+2. Enter target / 输入目标：
+   - **URL Scan**: Full URL (e.g., `http://target.com/`) / 输入完整 URL
+   - **File Scan**: File path or click "Select File" / 输入文件路径或选择文件
+   - **Text Scan**: Paste ciphertext/encoded text / 直接粘贴密文/编码文本
+3. (Optional) Paste curl command to auto-configure Cookie/Header/Proxy / 粘贴 curl 命令自动配置
+4. Click "Start Scan" / 点击"开始扫描"
 
-### 三种扫描模式覆盖范围
+### URL Scan (17 Web Checks) / URL 扫描
 
-#### URL 扫描（17 项 Web 检测）
+Parallel execution of all Web security checks / 并行执行所有 Web 安全检测：
+- HTTP header analysis, robots.txt, Git leak, directory scan
+- SQLi, XSS, LFI, CMDi, SSRF, SSTI, XXE, CORS
+- Open Redirect, CRLF, path traversal, WAF detection, HTTP smuggling
 
-并行执行所有 Web 安全检测：
-- HTTP 头分析、robots.txt、Git 泄露、敏感路径扫描
-- SQL 注入、XSS、LFI、命令注入、SSRF、SSTI
-- XXE、CORS 配置、Open Redirect、CRLF 注入
-- 目录遍历、WAF 检测、HTTP 走私
+### File Scan (30+ Smart Dispatch) / 文件扫描（30+ 项智能调度）
 
-#### 文件扫描（30+ 项智能调度）
+Auto-selects checks based on file type / 根据文件类型自动选择检测项：
+- **All files**: type ID, metadata, strings, hidden files, header repair, NTFS ADS, timeline
+- **Images** (PNG/JPEG/GIF/BMP): stego analysis, channel split, LSB, bit plane, QR decode
+- **PNG**: width/height CRC repair
+- **Archives** (ZIP/RAR): password crack, fake encryption repair
+- **PCAP**: traffic analysis, HTTP extract, USB keyboard/mouse decode, DNS tunnel
+- **Audio**: spectrogram, DTMF decode
+- **Documents** (PDF/Office): document analysis
+- **ELF binaries**: checksec, disassembly, Go/Rust analysis, ROP gadgets
+- **PE/EXE**: PE protection check, .NET analysis
+- **APK**: APK analysis
+- **PYC**: Python decompile
 
-根据文件类型自动选择检测项：
-- **所有文件**：类型识别、元数据提取、字符串提取、隐藏文件扫描、文件头修复、NTFS ADS、时间线
-- **图片**（PNG/JPEG/GIF/BMP）：隐写分析、通道分离、LSB 提取、位平面分析、QR 码解码
-- **PNG**：宽高 CRC 修复
-- **压缩包**（ZIP/RAR）：密码爆破、伪加密修复
-- **PCAP**：流量分析、HTTP 提取、USB 键盘/鼠标解码、DNS 隧道检测
-- **音频**：频谱图分析、DTMF 解码
-- **文档**（PDF/Office）：文档分析
-- **ELF 二进制**：保护检测、反汇编、Go/Rust 分析、ROP Gadget 搜索
-- **PE/EXE**：PE 保护检测、.NET 分析
-- **APK**：APK 分析
-- **PYC**：Python 反编译
+### Text Scan (35+ Decode Attempts) / 文本扫描（35+ 项解码尝试）
 
-#### 文本扫描（35+ 项解码尝试）
-
-自动尝试所有解码和密码分析：
-- 自动解码（Base64/32/58/85/Hex/URL 等）
-- Caesar 暴力破解、ROT47、ROT 全遍历
-- 栅栏暴力破解、Atbash、仿射暴力破解
-- XOR 单字节暴力、XOR 自动破解
-- 替换密码自动破解、Vigenere 自动破解
-- 摩尔斯/盲文/核心价值观/DNA/猪圈/敲击码/旗语/NATO/Leet/Baudot 解码
-- T9 键盘/键盘坐标/零宽字符/Emoji/Manchester/颜色十六进制/跳舞小人 解码
-- Base100/JWT 解码、Brainfuck/Ook!/Whitespace 执行
-- 字频统计、字符转换、PHP 序列化解码
+Auto-tries all decoding and cipher analysis / 自动尝试所有解码和密码分析：
+- Auto decode (Base64/32/58/85/Hex/URL etc.)
+- Caesar bruteforce, ROT47, ROT all, Rail fence, Atbash, Affine
+- XOR single-byte bruteforce, XOR auto crack
+- Substitution auto crack, Vigenere auto crack
+- Morse/Braille/Core values/DNA/Pigpen/Tap code/Semaphore/NATO/Leet/Baudot
+- T9/Keyboard coords/Zero-width/Emoji/Manchester/Color hex/Dancing men
+- Base100/JWT decode, Brainfuck/Ook!/Whitespace execute
 
 ---
 
-## 密码学模块 (Crypto)
+## Crypto Module / 密码学模块
 
-共 95 个操作，分为以下类别：
+95 actions in total / 共 95 个操作
 
-### 编码/解码（23 个）
+### Encoding/Decoding / 编码解码（23）
 
-| 操作 | 说明 | 示例输入 |
-|------|------|---------|
-| `auto_decode` | 自动尝试所有编码 | `SGVsbG8=` |
-| `base64_encode/decode` | Base64 编解码 | `Hello World` |
-| `base32_encode/decode` | Base32 编解码 | `JBSWY3DPEBLW64TMMQ======` |
-| `base58_encode/decode` | Base58 编解码（Bitcoin 字母表） | `StV1DL6CwTryKyV` |
-| `base85_encode/decode` | Base85/Ascii85 编解码 | `87cURD]j` |
-| `base91_encode/decode` | Base91 编解码 | 高效编码 |
-| `base62_encode/decode` | Base62 编解码 | 纯字母数字 |
-| `hex_encode/decode` | 十六进制编解码 | `48656c6c6f` |
-| `url_encode/decode` | URL 编解码 | `Hello%20World` |
-| `html_entity_decode` | HTML 实体解码 | `&lt;script&gt;` |
-| `unicode_decode` | Unicode 转义解码 | `\u0048\u0065\u006c\u006c\u006f` |
-| `binary_encode/decode` | 二进制编解码 | `01001000 01100101` |
-| `octal_decode` | 八进制解码 | `110 145 154 154 157` |
-| `detect_encoding` | 自动检测编码类型 | 任意编码文本 |
+| Action / 操作 | Description / 说明 | Example Input / 示例输入 |
+|---|---|---|
+| `auto_decode` | Auto-try all encodings / 自动尝试所有编码 | `SGVsbG8=` |
+| `base64_encode/decode` | Base64 | `Hello World` |
+| `base32_encode/decode` | Base32 | `JBSWY3DPEBLW64TMMQ======` |
+| `base58_encode/decode` | Base58 (Bitcoin alphabet) | `StV1DL6CwTryKyV` |
+| `base85_encode/decode` | Base85/Ascii85 | `87cURD]j` |
+| `base91_encode/decode` | Base91 | High-efficiency encoding |
+| `base62_encode/decode` | Base62 | Alphanumeric only |
+| `hex_encode/decode` | Hexadecimal / 十六进制 | `48656c6c6f` |
+| `url_encode/decode` | URL encoding | `Hello%20World` |
+| `html_entity_decode` | HTML entity decode | `&lt;script&gt;` |
+| `unicode_decode` | Unicode escape decode | `\u0048\u0065\u006c\u006c\u006f` |
+| `binary_encode/decode` | Binary / 二进制 | `01001000 01100101` |
+| `octal_decode` | Octal decode / 八进制 | `110 145 154 154 157` |
+| `detect_encoding` | Auto-detect encoding type / 自动检测编码类型 | Any encoded text |
 
-### 古典密码（29 个）
+### Classical Ciphers / 古典密码（29）
 
-| 操作 | 说明 | 需要密钥 |
-|------|------|---------|
-| `caesar_bruteforce` | Caesar 暴力破解 | 否 |
-| `caesar_decrypt` | Caesar 指定偏移解密 | 是（偏移量） |
-| `rot13` / `rot47` | ROT13/ROT47 | 否 |
-| `vigenere_encrypt/decrypt` | Vigenere 加解密 | 是 |
-| `vigenere_key_length` | Vigenere 密钥长度推测 | 否 |
-| `rail_fence_decrypt/bruteforce` | 栅栏密码解密/暴力 | 否（暴力） |
-| `atbash` | Atbash 字母反转 | 否 |
-| `bacon_decode` | 培根密码解码 | 否 |
-| `affine_decrypt/bruteforce` | 仿射密码 | 否（暴力） |
-| `playfair_encrypt/decrypt` | Playfair 密码 | 是 |
-| `polybius_encrypt/decrypt` | Polybius 方阵 | 是（可选） |
-| `hill_encrypt/decrypt` | Hill 密码 | 是（矩阵） |
-| `columnar_transposition_encrypt/decrypt` | 列置换 | 是 |
-| `substitution_auto_crack` | 替换密码自动破解 | 否 |
-| `adfgvx_decrypt` | ADFGVX 解密 | 是 |
-| `bifid_encrypt/decrypt` | Bifid 密码 | 是 |
-| `four_square_decrypt` | Four-square 解密 | 是 |
-| `autokey_decrypt` | Autokey 解密 | 是 |
-| `nihilist_decrypt` | Nihilist 解密 | 是 |
-| `book_cipher_decode` | Book 密码解码 | 是（密码本） |
+| Action / 操作 | Description / 说明 | Key Required / 需要密钥 |
+|---|---|---|
+| `caesar_bruteforce` | Caesar bruteforce / 暴力破解 | No |
+| `caesar_decrypt` | Caesar with offset / 指定偏移解密 | Yes (offset) |
+| `rot13` / `rot47` | ROT13/ROT47 | No |
+| `vigenere_encrypt/decrypt` | Vigenere cipher | Yes |
+| `vigenere_key_length` | Vigenere key length guess / 密钥长度推测 | No |
+| `rail_fence_decrypt/bruteforce` | Rail fence cipher / 栅栏密码 | No (bruteforce) |
+| `atbash` | Atbash (alphabet reverse) / 字母反转 | No |
+| `bacon_decode` | Bacon cipher / 培根密码 | No |
+| `affine_decrypt/bruteforce` | Affine cipher / 仿射密码 | No (bruteforce) |
+| `playfair_encrypt/decrypt` | Playfair cipher | Yes |
+| `polybius_encrypt/decrypt` | Polybius square / 方阵 | Yes (optional) |
+| `hill_encrypt/decrypt` | Hill cipher | Yes (matrix) |
+| `columnar_transposition_encrypt/decrypt` | Columnar transposition / 列置换 | Yes |
+| `substitution_auto_crack` | Substitution auto crack / 替换密码自动破解 | No |
+| `adfgvx_decrypt` | ADFGVX cipher | Yes |
+| `bifid_encrypt/decrypt` | Bifid cipher | Yes |
+| `four_square_decrypt` | Four-square cipher | Yes |
+| `autokey_decrypt` | Autokey cipher | Yes |
+| `nihilist_decrypt` | Nihilist cipher | Yes |
+| `book_cipher_decode` | Book cipher / 字典密码 | Yes (book text) |
 
-### 现代加密（18 个）
+### Modern Cryptography / 现代加密（18）
 
-| 操作 | 说明 | 需要密钥 |
-|------|------|---------|
-| `aes_ecb_encrypt/decrypt` | AES-ECB 加解密 | 是（16/24/32字节） |
-| `aes_cbc_encrypt/decrypt` | AES-CBC 加解密 | 是（密钥 + IV） |
-| `aes_ctr_encrypt/decrypt` | AES-CTR 加解密 | 是 |
-| `des_ecb_encrypt/decrypt` | DES-ECB 加解密 | 是（8字节） |
-| `triple_des_encrypt/decrypt` | 3DES 加解密 | 是（16/24字节） |
-| `blowfish_encrypt/decrypt` | Blowfish 加解密 | 是（4-56字节） |
-| `xor_single_byte_bruteforce` | XOR 单字节暴力 | 否 |
-| `xor_decrypt` | XOR 多字节解密 | 是 |
-| `xor_auto_crack` | XOR 自动破解 | 否 |
-| `rc4` | RC4 加解密 | 是 |
-| `rabbit_decrypt` | Rabbit 流密码 | 帮助模板 |
-| `padding_oracle_helper` | Padding Oracle 攻击模板 | 模板 |
+| Action / 操作 | Description / 说明 | Key Required / 需要密钥 |
+|---|---|---|
+| `aes_ecb_encrypt/decrypt` | AES-ECB | Yes (16/24/32 bytes) |
+| `aes_cbc_encrypt/decrypt` | AES-CBC | Yes (key + IV) |
+| `aes_ctr_encrypt/decrypt` | AES-CTR | Yes |
+| `des_ecb_encrypt/decrypt` | DES-ECB | Yes (8 bytes) |
+| `triple_des_encrypt/decrypt` | 3DES | Yes (16/24 bytes) |
+| `blowfish_encrypt/decrypt` | Blowfish | Yes (4-56 bytes) |
+| `xor_single_byte_bruteforce` | XOR single-byte bruteforce / 单字节暴力 | No |
+| `xor_decrypt` | XOR multi-byte decrypt / 多字节解密 | Yes |
+| `xor_auto_crack` | XOR auto crack / 自动破解 | No |
+| `rc4` | RC4 encrypt/decrypt | Yes |
+| `rabbit_decrypt` | Rabbit stream cipher (helper template) | Template |
+| `padding_oracle_helper` | Padding Oracle attack template | Template |
 
-### 哈希（7 个）
+### Hash / 哈希（7）
 
-| 操作 | 说明 |
-|------|------|
-| `identify_hash` | 识别哈希类型（MD5/SHA1/SHA256 等） |
-| `hash_crack_dict` | 字典碰撞 |
-| `hash_crack_online` | 在线反查（nitrxgen API） |
-| `compute_hash` | 计算文本哈希 |
-| `hash_length_extension` | 哈希长度扩展攻击 |
-| `crc32` | CRC32 校验 |
-| `hmac_compute` | HMAC 计算 |
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `identify_hash` | Identify hash type (MD5/SHA1/SHA256 etc.) / 识别哈希类型 |
+| `hash_crack_dict` | Dictionary crack / 字典碰撞 |
+| `hash_crack_online` | Online reverse lookup (nitrxgen API) / 在线反查 |
+| `compute_hash` | Compute hash of text / 计算文本哈希 |
+| `hash_length_extension` | Hash length extension attack / 哈希长度扩展攻击 |
+| `crc32` | CRC32 checksum / CRC32 校验 |
+| `hmac_compute` | HMAC computation (MD5/SHA1/SHA256/SHA512) |
 
-### 高级密码学（18 个）
+### Advanced Cryptography / 高级密码学（18）
 
-| 操作 | 说明 |
-|------|------|
-| `frequency_analysis` | 字母频率分析 |
-| `ecc_point_add` | 椭圆曲线点运算 |
-| `dlp_bsgs` | 离散对数 BSGS 算法 |
-| `dlp_pohlig_hellman` | 离散对数 Pohlig-Hellman |
-| `mt19937_predict` | MT19937 状态恢复 |
-| `chinese_remainder_theorem` | 中国剩余定理 |
-| `rsa_decrypt_multi_prime` | RSA 多素数解密 |
-| `rsa_dq_leak` | RSA dq 泄露攻击 |
-| `rsa_auto_attack` | RSA 自动攻击（依次尝试所有方式） |
-| `rabin_decrypt` | Rabin 密码解密 (e=2)，输出 4 个候选明文 |
-| `rsa_batch_gcd` | 批量 GCD 攻击，输入多个 n（逗号分隔） |
-| `rsa_franklin_reiter` | Franklin-Reiter 相关消息攻击 |
-| `rsa_coppersmith_helper` | Coppersmith 攻击 SageMath 脚本模板 |
-| `rsa_boneh_durfee_helper` | Boneh-Durfee 攻击 SageMath 脚本模板 |
-| `rsa_williams_p1` | Williams p+1 分解 |
-| `rsa_import_key` | RSA 密钥文件导入（支持 PEM/DER 格式，自动提取 n/e/d/p/q） |
-| `hash_collision_generate` | 哈希碰撞生成（MD5/SHA1/CRC32，生成指定前缀的碰撞对） |
-| `password_strength` | 密码强度评估（评分 0-100 + 预计破解时间估算） |
-
----
-
-## Web 安全模块
-
-共 39 个操作：
-
-### 信息收集（7 个）
-
-| 操作 | 输入 | 说明 |
-|------|------|------|
-| `analyze_headers` | URL | HTTP 响应头安全分析 |
-| `check_robots` | URL | 检查 robots.txt |
-| `check_git_leak` | URL | .git 信息泄露检测 |
-| `dir_scan` | URL | 敏感路径多线程扫描（75+ 路径） |
-| `subdomain_enum` | 域名 | 子域名字典枚举 |
-| `fingerprint` | URL | Web 指纹识别（CMS/框架检测） |
-| `info_gather` | URL | 敏感信息收集（邮箱/IP/API Key） |
-
-### 漏洞检测（20 个）
-
-| 操作 | 说明 |
-|------|------|
-| `detect_sqli` | SQL 注入检测（Error-based + UNION） |
-| `detect_xss` | 反射型 XSS 检测 |
-| `detect_lfi` | 本地文件包含（含自动读取 flag） |
-| `detect_cmdi` | 命令注入检测（含自动执行） |
-| `detect_ssrf` | SSRF 探测 |
-| `detect_ssti` | 模板注入检测（含 RCE 尝试） |
-| `detect_xxe` | XXE 外部实体注入 |
-| `detect_cors` | CORS 配置错误 |
-| `detect_open_redirect` | 开放重定向 |
-| `detect_crlf` | CRLF 注入 |
-| `detect_path_traversal` | 目录遍历（增强版） |
-| `detect_http_smuggling` | HTTP 请求走私 |
-| `detect_waf` | WAF 检测与识别 |
-| `detect_svn_leak` | SVN/.svn 泄露检测 |
-| `detect_ds_store` | .DS_Store 文件泄露检测 |
-| `detect_backup_files` | 备份文件检测 (.bak/.swp/.old/www.zip 等) |
-| `detect_env_leak` | .env 配置文件泄露检测 |
-| `detect_graphql` | GraphQL 自省检测 |
-| `detect_host_injection` | Host 头注入检测 |
-| `detect_jsonp` | JSONP 劫持检测 |
-
-### JWT / Payload / 辅助（6 个）
-
-| 操作 | 说明 |
-|------|------|
-| `jwt_forge_none` | JWT none 算法伪造 |
-| `jwt_crack` | JWT 弱密钥爆破 |
-| `generate_payload` | 生成测试 Payload |
-| `deserialize_helper` | 反序列化漏洞辅助 |
-| `prototype_pollution_helper` | 原型链污染辅助 |
-| `race_condition_helper` | 竞争条件辅助 |
-
-### 配置与高级检测（6 个）
-
-| 操作 | 说明 |
-|------|------|
-| `configure` | 配置 HTTP 请求上下文 |
-| `parse_curl` | 解析 curl 命令并配置 |
-| `detect_swagger` | Swagger/OpenAPI 接口文档探测（自动发现 API 文档端点） |
-| `sqli_auto_exploit` | SQLi 自动化利用链（6步：检测→数据库→表→列→数据→Flag） |
-| `dir_listing_crawl` | 目录列表递归爬取（自动遍历 Apache/Nginx Index of 页面，发现隐藏文件和 Flag） |
-| `sqli_time_blind` | SQL 时间盲注自动化提取（无回显场景，通过 SLEEP 延迟逐字符提取 database/tables/flag） |
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `frequency_analysis` | Letter frequency analysis / 字母频率分析 |
+| `ecc_point_add` | Elliptic curve point operations / 椭圆曲线点运算 |
+| `dlp_bsgs` | Discrete log BSGS / 离散对数 BSGS |
+| `dlp_pohlig_hellman` | Discrete log Pohlig-Hellman |
+| `mt19937_predict` | MT19937 state recovery / 状态恢复 |
+| `chinese_remainder_theorem` | CRT solver / 中国剩余定理 |
+| `rsa_decrypt_multi_prime` | RSA multi-prime decrypt / 多素数解密 |
+| `rsa_dq_leak` | RSA dq leak attack / dq 泄露攻击 |
+| `rsa_auto_attack` | RSA auto attack (try all methods) / 自动攻击 |
+| `rabin_decrypt` | Rabin cipher decrypt (e=2), outputs 4 candidates |
+| `rsa_batch_gcd` | Batch GCD attack (multiple n, comma-separated) / 批量 GCD |
+| `rsa_franklin_reiter` | Franklin-Reiter related message attack |
+| `rsa_coppersmith_helper` | Coppersmith attack SageMath template |
+| `rsa_boneh_durfee_helper` | Boneh-Durfee attack SageMath template |
+| `rsa_williams_p1` | Williams p+1 factorization |
+| `rsa_import_key` | RSA key import (PEM/DER, auto-extract n/e/d/p/q) / 密钥导入 |
+| `hash_collision_generate` | Hash collision generation (MD5/SHA1/CRC32) / 碰撞生成 |
+| `password_strength` | Password strength assessment (score 0-100) / 密码强度评估 |
 
 ---
 
-## 取证分析模块 (Forensics)
+## Web Security Module / Web 安全模块
 
-共 44 个操作：
+39 actions in total / 共 39 个操作
 
-### 文件基础分析（7 个）
+### Reconnaissance / 信息收集（7）
 
-| 操作 | 说明 |
-|------|------|
-| `identify_file` | 文件类型识别 + 基础分析 |
-| `extract_strings` | 提取可打印字符串 |
-| `extract_metadata` | 元数据/EXIF/GPS 提取 |
-| `hex_view` | 十六进制查看器 |
-| `file_diff` | 两文件差异对比 |
-| `file_timeline` | 文件时间线分析 |
-| `fix_file_header` | 文件头自动修复 |
+| Action / 操作 | Input / 输入 | Description / 说明 |
+|---|---|---|
+| `analyze_headers` | URL | HTTP response header security analysis / 响应头安全分析 |
+| `check_robots` | URL | Check robots.txt / 检查 robots.txt |
+| `check_git_leak` | URL | .git leak detection / Git 信息泄露检测 |
+| `dir_scan` | URL | Multi-threaded directory scan (75+ paths) / 敏感路径扫描 |
+| `subdomain_enum` | Domain | Subdomain dictionary enumeration / 子域名枚举 |
+| `fingerprint` | URL | Web fingerprint (CMS/framework detection) / 指纹识别 |
+| `info_gather` | URL | Sensitive info gathering (email/IP/API key) / 敏感信息收集 |
 
-### 隐写术（12 个）
+### Vulnerability Detection / 漏洞检测（20）
 
-| 操作 | 说明 |
-|------|------|
-| `detect_stego` | 隐写术综合检测 |
-| `lsb_extract_advanced` | 高级 LSB 提取（多位平面/通道） |
-| `lsb_encode` | LSB 隐写写入 |
-| `bit_plane_analysis` | 位平面全分析（类 Stegsolve） |
-| `split_channels` | RGB 通道分离 |
-| `png_crc_fix` | PNG 宽高 CRC 修复 |
-| `gif_frame_extract` | GIF 帧分离 |
-| `steghide_extract` | Steghide 隐写提取 + 密码爆破（支持字典） |
-| `zsteg_scan` | Zsteg 式自动扫描（遍历所有位平面/通道/扫描顺序组合） |
-| `blind_watermark_extract` | 频域盲水印提取（FFT 分析） |
-| `apng_extract` | APNG 动态 PNG 帧提取 |
-| `sstv_decode_helper` | SSTV 慢扫描电视解码辅助 |
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `detect_sqli` | SQL injection (Error-based + UNION) / SQL 注入检测 |
+| `detect_xss` | Reflected XSS detection / 反射型 XSS |
+| `detect_lfi` | Local file inclusion (auto flag read) / 本地文件包含 |
+| `detect_cmdi` | Command injection (auto execution) / 命令注入 |
+| `detect_ssrf` | SSRF detection / SSRF 探测 |
+| `detect_ssti` | Template injection (with RCE attempt) / 模板注入 |
+| `detect_xxe` | XXE external entity injection / 外部实体注入 |
+| `detect_cors` | CORS misconfiguration / CORS 配置错误 |
+| `detect_open_redirect` | Open redirect / 开放重定向 |
+| `detect_crlf` | CRLF injection / CRLF 注入 |
+| `detect_path_traversal` | Directory traversal (enhanced) / 目录遍历 |
+| `detect_http_smuggling` | HTTP request smuggling / 请求走私 |
+| `detect_waf` | WAF detection & identification / WAF 检测 |
+| `detect_svn_leak` | SVN/.svn leak detection / SVN 泄露 |
+| `detect_ds_store` | .DS_Store file leak / .DS_Store 泄露 |
+| `detect_backup_files` | Backup file detection (.bak/.swp/.old/www.zip) / 备份文件检测 |
+| `detect_env_leak` | .env file leak / .env 泄露 |
+| `detect_graphql` | GraphQL introspection / GraphQL 自省 |
+| `detect_host_injection` | Host header injection / Host 头注入 |
+| `detect_jsonp` | JSONP hijacking / JSONP 劫持 |
 
-### 压缩包（4 个）
+### JWT / Payload / Helpers / 辅助工具（6）
 
-| 操作 | 说明 |
-|------|------|
-| `zip_crack` | ZIP 密码爆破 |
-| `rar_crack` | RAR 密码爆破 |
-| `zip_fake_decrypt` | ZIP 伪加密修复 |
-| `file_carve` | 基于 magic bytes 的文件切割 |
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `jwt_forge_none` | JWT none algorithm forgery / JWT none 伪造 |
+| `jwt_crack` | JWT weak key bruteforce / JWT 弱密钥爆破 |
+| `generate_payload` | Generate test payloads / 生成测试 Payload |
+| `deserialize_helper` | Deserialization vulnerability helper / 反序列化辅助 |
+| `prototype_pollution_helper` | Prototype pollution helper / 原型链污染辅助 |
+| `race_condition_helper` | Race condition helper / 竞争条件辅助 |
 
-### 流量分析（6 个）
+### Advanced Detection / 高级检测（6）
 
-| 操作 | 说明 |
-|------|------|
-| `pcap_analyze` | PCAP 综合分析 |
-| `pcap_extract_http` | HTTP 流量提取 |
-| `pcap_extract_files` | 从 PCAP 自动导出文件 |
-| `usb_keyboard_decode` | USB 键盘流量解码 |
-| `usb_mouse_decode` | USB 鼠标轨迹解码 |
-| `detect_dns_tunnel` | DNS 隧道检测 |
-
-### 文件分离（2 个）
-
-| 操作 | 说明 |
-|------|------|
-| `binwalk_scan` | 嵌入文件扫描 |
-| `binwalk_extract` | 嵌入文件提取并保存 |
-
-### 音频分析（2 个）
-
-| 操作 | 说明 |
-|------|------|
-| `audio_spectrogram` | 音频频谱图（检测隐藏信息） |
-| `dtmf_decode` | DTMF 拨号音解码 |
-
-### 文档/系统取证（11 个）
-
-| 操作 | 说明 |
-|------|------|
-| `pdf_analyze` | PDF 分析（JavaScript/嵌入文件） |
-| `office_analyze` | Office 文档分析（宏/OLE 对象） |
-| `memory_dump_analyze` | 内存 Dump 分析 |
-| `detect_ntfs_ads` | NTFS 备用数据流检测 |
-| `detect_exif_tampering` | EXIF 篡改检测 |
-| `analyze_disk_image` | 磁盘镜像分析 |
-| `analyze_email` | Email 头分析 |
-| `analyze_registry` | Windows 注册表分析 |
-| `stego_full_scan` | 隐写术全扫描（8项检测汇总：LSB/位平面/通道/尾部/频域/Steghide/Zsteg/盲水印） |
-| `file_carve_precise` | 精确文件切割（6种格式头尾标记：JPEG/PNG/GIF/PDF/ZIP/RAR） |
-| `memory_forensics_enhanced` | 内存取证增强（9类信息提取：进程/网络/注册表/文件/密码/命令行/DLL/服务/驱动） |
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `configure` | Configure HTTP context (headers/cookies/proxy/auth) |
+| `parse_curl` | Parse curl command to auto-configure / 解析 curl 命令 |
+| `detect_swagger` | Swagger/OpenAPI endpoint detection / 接口文档探测 |
+| `sqli_auto_exploit` | SQLi auto exploit chain (6-step: detect→DB→table→column→data→flag) |
+| `dir_listing_crawl` | Directory listing recursive crawl / 目录列表递归爬取 |
+| `sqli_time_blind` | Time-based blind SQLi auto extraction / 时间盲注自动提取 |
 
 ---
 
-## 逆向工程模块 (Reverse)
+## Forensics Module / 取证分析模块
 
-共 14 个操作：
+44 actions in total / 共 44 个操作
 
-| 操作 | 说明 |
-|------|------|
-| `analyze_binary` | 综合二进制分析（类型/架构/熵值/字符串） |
-| `extract_strings_from_binary` | 提取 ASCII/UTF-16 字符串 |
-| `disassemble` | 反汇编（自动检测架构，支持 x86/x64/ARM/MIPS） |
-| `check_elf_protections` | ELF checksec（NX/RELRO/PIE/Canary） |
-| `check_pe_protections` | PE 保护检测（DEP/ASLR/CFG/SafeSEH） |
-| `decompile_pyc` | Python .pyc 反编译 |
-| `detect_packer` | 加壳检测（UPX/Themida/VMProtect 等） |
-| `list_imports_exports` | 导入导出表 |
-| `analyze_apk` | Android APK 分析 |
-| `analyze_dotnet` | .NET 程序集分析 |
-| `analyze_go_binary` | Go 二进制分析 |
-| `analyze_rust_binary` | Rust 二进制分析 |
-| `yara_scan` | YARA 规则扫描 |
-| `deobfuscate_strings` | 字符串反混淆 |
+### File Analysis / 文件基础分析（7）
 
----
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `identify_file` | File type identification + analysis / 文件类型识别 |
+| `extract_strings` | Extract printable strings / 提取可打印字符串 |
+| `extract_metadata` | Metadata/EXIF/GPS extraction / 元数据提取 |
+| `hex_view` | Hex viewer / 十六进制查看器 |
+| `file_diff` | Two-file diff comparison / 差异对比 |
+| `file_timeline` | File timeline analysis / 时间线分析 |
+| `fix_file_header` | Auto file header repair / 文件头自动修复 |
 
-## Pwn 模块
+### Steganography / 隐写术（12）
 
-共 25 个操作：
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `detect_stego` | Comprehensive stego detection / 隐写术综合检测 |
+| `lsb_extract_advanced` | Advanced LSB extraction (multi bit-plane/channel) / 高级 LSB 提取 |
+| `lsb_encode` | LSB steganography write / LSB 隐写写入 |
+| `bit_plane_analysis` | Full bit-plane analysis (Stegsolve-like) / 位平面全分析 |
+| `split_channels` | RGB channel split / 通道分离 |
+| `png_crc_fix` | PNG width/height CRC repair / PNG 宽高修复 |
+| `gif_frame_extract` | GIF frame extraction / GIF 帧分离 |
+| `steghide_extract` | Steghide extract + password crack / Steghide 提取 |
+| `zsteg_scan` | Zsteg-style auto scan (pure Python) / 自动扫描 |
+| `blind_watermark_extract` | FFT blind watermark extraction / 频域盲水印提取 |
+| `apng_extract` | APNG frame extraction / APNG 帧提取 |
+| `sstv_decode_helper` | SSTV slow-scan TV decode helper / SSTV 解码辅助 |
 
-### 溢出利用（3 个）
+### Archives / 压缩包（4）
 
-| 操作 | 说明 |
-|------|------|
-| `generate_pattern` | 生成 De Bruijn 序列（定位溢出偏移） |
-| `find_pattern_offset` | 查找偏移量（输入崩溃值） |
-| `generate_padding` | 生成缓冲区溢出 payload |
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `zip_crack` | ZIP password crack / ZIP 密码爆破 |
+| `rar_crack` | RAR password crack / RAR 密码爆破 |
+| `zip_fake_decrypt` | ZIP fake encryption repair / 伪加密修复 |
+| `file_carve` | File carving by magic bytes / 文件切割 |
 
-### 格式化字符串（3 个）
+### Traffic Analysis / 流量分析（6）
 
-| 操作 | 说明 |
-|------|------|
-| `format_string_read` | 格式化字符串读取 payload |
-| `format_string_write` | 格式化字符串写入 payload |
-| `find_format_offset` | 查找格式化字符串偏移 |
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `pcap_analyze` | PCAP comprehensive analysis / PCAP 综合分析 |
+| `pcap_extract_http` | HTTP stream extraction / HTTP 流量提取 |
+| `pcap_extract_files` | Auto export files from PCAP / 自动导出文件 |
+| `usb_keyboard_decode` | USB keyboard traffic decode / USB 键盘解码 |
+| `usb_mouse_decode` | USB mouse trace decode / USB 鼠标轨迹解码 |
+| `detect_dns_tunnel` | DNS tunnel detection / DNS 隧道检测 |
 
-### ROP / Shellcode（3 个）
+### File Extraction / 文件分离（2）
 
-| 操作 | 说明 |
-|------|------|
-| `find_rop_gadgets` | ROP Gadget 搜索 |
-| `shellcode_template` | Shellcode 模板 |
-| `check_bad_chars` | Shellcode 坏字符检测 |
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `binwalk_scan` | Embedded file scan / 嵌入文件扫描 |
+| `binwalk_extract` | Embedded file extraction / 嵌入文件提取 |
 
-### 工具（2 个）
+### Audio Analysis / 音频分析（2）
 
-| 操作 | 说明 |
-|------|------|
-| `addr_convert` | 地址格式转换 |
-| `pwntools_template` | pwntools 脚本模板 |
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `audio_spectrogram` | Audio spectrogram (detect hidden info) / 频谱图 |
+| `dtmf_decode` | DTMF dial tone decode (Goertzel) / 拨号音解码 |
 
-### 利用模板（14 个）
+### Document & System Forensics / 文档与系统取证（11）
 
-| 操作 | 说明 |
-|------|------|
-| `ret2libc_template` | ret2libc 模板 |
-| `ret2syscall_template` | ret2syscall 模板 |
-| `srop_template` | SROP 模板 |
-| `ret2csu_template` | ret2csu 模板 |
-| `stack_pivot_template` | 栈迁移模板 |
-| `got_overwrite_template` | GOT 覆写模板 |
-| `heap_exploit_template` | 堆利用模板（tcache/fastbin/house_of_force） |
-| `one_gadget_helper` | one_gadget 使用指南 |
-| `seccomp_helper` | seccomp 沙箱分析 |
-| `io_file_template` | IO_FILE 利用模板 |
-| `house_of_orange_template` | House of Orange 模板 |
-| `auto_ret2text` | 自动 ret2text 分析（找后门函数+计算偏移+生成 exploit 脚本） |
-| `auto_ret2shellcode` | 自动 ret2shellcode 分析（NX 关闭时自动生成 shellcode exploit） |
-| `auto_pwn_analyze` | 综合 Pwn 分析（checksec+漏洞定位+推荐利用路线+生成完整脚本） |
-
----
-
-## 杂项模块 (Misc)
-
-共 66 个操作：
-
-### 编码/密码（38 个）
-
-| 操作 | 说明 |
-|------|------|
-| `morse_encode/decode` | 摩尔斯电码 |
-| `braille_encode/decode` | 盲文 |
-| `core_values_encode/decode` | 核心价值观编码 |
-| `pigpen_decode` | 猪圈密码 |
-| `dna_encode/decode` | DNA 密码 |
-| `bacon_encode` | 培根密码编码 |
-| `base100_encode/decode` | Base100（Emoji 编码） |
-| `tap_code_encode/decode` | 敲击码 |
-| `semaphore_encode/decode` | 旗语 |
-| `nato_encode/decode` | NATO 音标 |
-| `leet_encode/decode` | Leet Speak |
-| `emoji_cipher_encode/decode` | Emoji 替换密码 |
-| `manchester_encode/decode` | Manchester 编码 |
-| `baudot_decode` | Baudot/ITA2 电传打字机 |
-| `color_hex_decode` | 颜色十六进制解码 |
-| `dancing_men_decode` | 跳舞小人（福尔摩斯） |
-| `uuencode` / `uudecode` | UUencode 编解码 |
-| `xxencode` / `xxdecode` | XXencode 编解码 |
-| `quoted_printable_encode` / `quoted_printable_decode` | Quoted-Printable 编解码 |
-| `audio_morse_decode` | 音频摩尔斯解码（从 WAV 文件自动识别） |
-| `piet_helper` | Piet 图像编程语言辅助 |
-| `malbolge_execute` | Malbolge 语言执行器 |
-| `ebcdic_to_ascii` / `ascii_to_ebcdic` | EBCDIC 与 ASCII 互转 |
-
-### 工具（12 个）
-
-| 操作 | 说明 |
-|------|------|
-| `base_convert` | 进制转换 |
-| `char_convert` | 字符编码互转 |
-| `ascii_table` | ASCII 码表 |
-| `rot_all` / `rot47` | ROT 全遍历 / ROT47 |
-| `coord_convert` | 坐标系转换 |
-| `keyboard_layout_convert` | 键盘布局转换（QWERTY/Dvorak/Colemak） |
-| `timestamp_convert` | 多格式时间戳转换 |
-| `word_frequency` | 字频统计 |
-| `generate_wordlist` | 社工字典生成 |
-| `enigma_decrypt` | Enigma 密码机模拟器 |
-| `vigenere_auto_crack` | Vigenere 自动破解 |
-
-### 解码/解析（8 个）
-
-| 操作 | 说明 |
-|------|------|
-| `qr_decode` | QR 码解码 |
-| `qr_generate` | QR 码生成 |
-| `qr_batch_decode` | 二维码批量扫描 |
-| `barcode_decode` | 条形码解码 |
-| `jwt_decode` | JWT Token 解码 |
-| `t9_decode` | T9 九宫格解码 |
-| `keyboard_coord_decode` | 键盘坐标解码 |
-| `php_serialize_decode` | PHP 序列化解析 |
-
-### 隐写/执行（8 个）
-
-| 操作 | 说明 |
-|------|------|
-| `zwc_encode/decode` | 零宽字符隐写 |
-| `brainfuck_execute` | Brainfuck 解释器 |
-| `ook_decode/execute` | Ook! 解码/执行 |
-| `whitespace_execute` | Whitespace 解释器 |
-| `pixel_extract` | 图片像素提取 |
-| `ocr_extract` | 图片 OCR 文字提取 |
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `pdf_analyze` | PDF analysis (JavaScript/embedded files) / PDF 分析 |
+| `office_analyze` | Office document analysis (macros/OLE) / Office 分析 |
+| `memory_dump_analyze` | Memory dump analysis / 内存 Dump 分析 |
+| `detect_ntfs_ads` | NTFS Alternate Data Stream detection / ADS 检测 |
+| `detect_exif_tampering` | EXIF tampering detection / EXIF 篡改检测 |
+| `analyze_disk_image` | Disk image analysis (MBR/GPT) / 磁盘镜像分析 |
+| `analyze_email` | Email header analysis / 邮件头分析 |
+| `analyze_registry` | Windows registry analysis / 注册表分析 |
+| `stego_full_scan` | Stego full scan (8 checks combined) / 隐写全扫描 |
+| `file_carve_precise` | Precise file carving (6 format markers) / 精确文件切割 |
+| `memory_forensics_enhanced` | Enhanced memory forensics (9 categories) / 内存取证增强 |
 
 ---
 
-## RSA 攻击模块
+## Reverse Engineering Module / 逆向工程模块
 
-专用面板，输入 n/e/c/Extra 参数：
+14 actions in total / 共 14 个操作
 
-| 攻击方式 | 说明 | Extra 参数 |
-|----------|------|-----------|
-| `small_e` | 小指数攻击 | — |
-| `common_modulus` | 共模攻击 | `e2,c2` |
-| `wiener` | Wiener 攻击（d 较小） | — |
-| `fermat` | Fermat 分解（p,q 接近） | — |
-| `pollard_p1` | Pollard p-1 分解 | — |
-| `pollard_rho` | Pollard rho 分解 | — |
-| `dp_leak` | dp 泄露攻击 | `dp 值` |
-| `dq_leak` | dq 泄露攻击 | `dq 值` |
-| `hastad` | Hastad 广播攻击 | `n2,c2;n3,c3;...` |
-| `factordb` | factordb 在线查询 | — |
-| `direct` | 已知 p,q 直接解密 | `p,q` |
-| `multi_prime` | 多素数 RSA | `p1,p2,p3,...` |
-| `rsa_auto_attack` | 自动攻击（依次尝试全部） | — |
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `analyze_binary` | Comprehensive binary analysis (type/arch/entropy/strings) / 综合分析 |
+| `extract_strings_from_binary` | Extract ASCII/UTF-16 strings / 提取字符串 |
+| `disassemble` | Disassembly (auto-detect arch: x86/x64/ARM/MIPS) / 反汇编 |
+| `check_elf_protections` | ELF checksec (NX/RELRO/PIE/Canary) |
+| `check_pe_protections` | PE protection check (DEP/ASLR/CFG/SafeSEH) |
+| `decompile_pyc` | Python .pyc decompile / 反编译 |
+| `detect_packer` | Packer detection (UPX/Themida/VMProtect etc.) / 加壳检测 |
+| `list_imports_exports` | Import/export table / 导入导出表 |
+| `analyze_apk` | Android APK analysis |
+| `analyze_dotnet` | .NET assembly analysis |
+| `analyze_go_binary` | Go binary analysis |
+| `analyze_rust_binary` | Rust binary analysis |
+| `yara_scan` | YARA rule scanning / YARA 规则扫描 |
+| `deobfuscate_strings` | String deobfuscation / 字符串反混淆 |
 
 ---
 
-## CLI 命令行模式
+## Pwn Module / Pwn 模块
 
-### 基本语法
+25 actions in total / 共 25 个操作
+
+### Buffer Overflow / 溢出利用（3）
+
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `generate_pattern` | Generate De Bruijn sequence (find overflow offset) / 生成偏移定位序列 |
+| `find_pattern_offset` | Find offset from crash value / 查找偏移量 |
+| `generate_padding` | Generate buffer overflow payload / 生成溢出 payload |
+
+### Format String / 格式化字符串（3）
+
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `format_string_read` | Format string read payload |
+| `format_string_write` | Format string write payload |
+| `find_format_offset` | Find format string offset |
+
+### ROP / Shellcode（3）
+
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `find_rop_gadgets` | ROP gadget search |
+| `shellcode_template` | Shellcode template / Shellcode 模板 |
+| `check_bad_chars` | Shellcode bad character detection / 坏字符检测 |
+
+### Utilities / 工具（2）
+
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `addr_convert` | Address format conversion / 地址格式转换 |
+| `pwntools_template` | pwntools script template / 脚本模板 |
+
+### Exploit Templates / 利用模板（14）
+
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `ret2libc_template` | ret2libc template |
+| `ret2syscall_template` | ret2syscall template |
+| `srop_template` | SROP template |
+| `ret2csu_template` | ret2csu template |
+| `stack_pivot_template` | Stack pivot template / 栈迁移模板 |
+| `got_overwrite_template` | GOT overwrite template |
+| `heap_exploit_template` | Heap exploit template (tcache/fastbin/house_of_force) |
+| `one_gadget_helper` | one_gadget usage guide |
+| `seccomp_helper` | seccomp sandbox analysis / 沙箱分析 |
+| `io_file_template` | IO_FILE exploit template |
+| `house_of_orange_template` | House of Orange template |
+| `auto_ret2text` | Auto ret2text (find backdoor + calc offset + gen exploit) / 自动分析 |
+| `auto_ret2shellcode` | Auto ret2shellcode (NX disabled → shellcode exploit) / 自动分析 |
+| `auto_pwn_analyze` | Comprehensive Pwn analysis (checksec + vuln + exploit route + script) / 综合分析 |
+
+---
+
+## Misc Module / 杂项模块
+
+66 actions in total / 共 66 个操作
+
+### Encoding & Ciphers / 编码与密码（38）
+
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `morse_encode/decode` | Morse code / 摩尔斯电码 |
+| `braille_encode/decode` | Braille / 盲文 |
+| `core_values_encode/decode` | Core values encoding / 核心价值观编码 |
+| `pigpen_decode` | Pigpen cipher / 猪圈密码 |
+| `dna_encode/decode` | DNA cipher / DNA 密码 |
+| `bacon_encode` | Bacon cipher encoding / 培根密码 |
+| `base100_encode/decode` | Base100 (Emoji encoding) |
+| `tap_code_encode/decode` | Tap code / 敲击码 |
+| `semaphore_encode/decode` | Semaphore flag / 旗语 |
+| `nato_encode/decode` | NATO phonetic alphabet / 音标字母 |
+| `leet_encode/decode` | Leet Speak (1337) |
+| `emoji_cipher_encode/decode` | Emoji substitution cipher / Emoji 替换密码 |
+| `manchester_encode/decode` | Manchester encoding |
+| `baudot_decode` | Baudot/ITA2 teleprinter / 电传打字机 |
+| `color_hex_decode` | Color hex decode / 颜色十六进制 |
+| `dancing_men_decode` | Dancing men (Sherlock Holmes) / 跳舞小人 |
+| `uuencode` / `uudecode` | UUencode encoding |
+| `xxencode` / `xxdecode` | XXencode encoding |
+| `quoted_printable_encode/decode` | Quoted-Printable encoding |
+| `audio_morse_decode` | Audio Morse decode (WAV auto-recognition) / 音频摩尔斯 |
+| `piet_helper` | Piet programming language helper |
+| `malbolge_execute` | Malbolge interpreter / 执行器 |
+| `ebcdic_to_ascii` / `ascii_to_ebcdic` | EBCDIC ↔ ASCII conversion |
+
+### Utilities / 工具（12）
+
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `base_convert` | Base conversion / 进制转换 |
+| `char_convert` | Character encoding conversion / 字符编码互转 |
+| `ascii_table` | ASCII table / ASCII 码表 |
+| `rot_all` / `rot47` | ROT all offsets / ROT47 |
+| `coord_convert` | Coordinate system conversion (decimal/DMS/Geohash) / 坐标转换 |
+| `keyboard_layout_convert` | Keyboard layout convert (QWERTY/Dvorak/Colemak) / 键盘布局 |
+| `timestamp_convert` | Multi-format timestamp conversion / 时间戳转换 |
+| `word_frequency` | Word frequency analysis / 字频统计 |
+| `generate_wordlist` | Social engineering wordlist generator / 社工字典 |
+| `enigma_decrypt` | Enigma cipher machine simulator / Enigma 模拟器 |
+| `vigenere_auto_crack` | Vigenere auto crack / 自动破解 |
+
+### Decode & Parse / 解码与解析（8）
+
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `qr_decode` | QR code decode / 二维码解码 |
+| `qr_generate` | QR code generate / 二维码生成 |
+| `qr_batch_decode` | Batch QR code scan / 批量扫描 |
+| `barcode_decode` | Barcode decode / 条形码 |
+| `jwt_decode` | JWT token decode |
+| `t9_decode` | T9 keyboard decode / 九宫格 |
+| `keyboard_coord_decode` | Keyboard coordinate decode / 键盘坐标 |
+| `php_serialize_decode` | PHP serialization parse / PHP 序列化 |
+
+### Stego & Execute / 隐写与执行（8）
+
+| Action / 操作 | Description / 说明 |
+|---|---|
+| `zwc_encode/decode` | Zero-width character steganography / 零宽字符隐写 |
+| `brainfuck_execute` | Brainfuck interpreter / 解释器 |
+| `ook_decode/execute` | Ook! decode/execute |
+| `whitespace_execute` | Whitespace interpreter / 解释器 |
+| `pixel_extract` | Image pixel text extraction / 像素提取 |
+| `ocr_extract` | Image OCR text extraction / OCR 提取 |
+
+---
+
+## RSA Attack Module / RSA 攻击模块
+
+Dedicated panel with n/e/c/Extra parameter inputs. / 专用面板，输入 n/e/c/Extra 参数：
+
+| Attack / 攻击方式 | Description / 说明 | Extra Parameter / 参数 |
+|---|---|---|
+| `small_e` | Small exponent attack / 小指数攻击 | — |
+| `common_modulus` | Common modulus attack / 共模攻击 | `e2,c2` |
+| `wiener` | Wiener attack (small d) | — |
+| `fermat` | Fermat factorization (p≈q) / 分解 | — |
+| `pollard_p1` | Pollard p-1 factorization | — |
+| `pollard_rho` | Pollard rho factorization | — |
+| `dp_leak` | dp leak attack / dp 泄露 | `dp value` |
+| `dq_leak` | dq leak attack / dq 泄露 | `dq value` |
+| `hastad` | Hastad broadcast attack / 广播攻击 | `n2,c2;n3,c3;...` |
+| `factordb` | factordb online lookup / 在线查询 | — |
+| `direct` | Direct decrypt (known p,q) / 直接解密 | `p,q` |
+| `multi_prime` | Multi-prime RSA / 多素数 | `p1,p2,p3,...` |
+| `rsa_auto_attack` | Auto attack (try all methods) / 自动攻击 | — |
+
+---
+
+## CLI Mode / 命令行模式
+
+### Syntax / 基本语法
 
 ```bash
-python main.py cli <模块> <操作> <输入> [选项]
+python main.py cli <module> <action> <input> [options]
 ```
 
-### 示例
+### Examples / 示例
 
 ```bash
-# 密码学
+# Crypto / 密码学
 python main.py cli crypto base64-decode "SGVsbG8gV29ybGQ="
 python main.py cli crypto caesar-bruteforce "Khoor Zruog"
-python main.py cli crypto aes-ecb-decrypt "密文hex" --key "密钥hex"
-python main.py cli crypto vigenere-decrypt "密文" --key "KEY"
+python main.py cli crypto aes-ecb-decrypt "ciphertext_hex" --key "key_hex"
+python main.py cli crypto vigenere-decrypt "ciphertext" --key "KEY"
 
-# RSA 攻击
+# RSA Attack / RSA 攻击
 python main.py cli rsa wiener --n 1234567 --e 65537 --c 9876543
 python main.py cli rsa small-e --n 1234567 --e 3 --c 9876543
 python main.py cli rsa direct --n 3233 --e 17 --c 2790 --extra "61,53"
 
-# Web 安全
+# Web Security / Web 安全
 python main.py cli web detect-sqli "http://target.com/?id=1"
 python main.py cli web jwt-forge-none "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoiYWRtaW4ifQ.xxx"
 
-# 取证分析
+# Forensics / 取证分析
 python main.py cli forensics identify-file challenge.png
 python main.py cli forensics png-crc-fix broken.png
 python main.py cli forensics pcap-analyze traffic.pcap
 
-# 逆向工程
+# Reverse Engineering / 逆向工程
 python main.py cli reverse analyze-binary pwn_challenge
 python main.py cli reverse check-elf-protections pwn_challenge
 
@@ -614,48 +615,52 @@ python main.py cli pwn generate-pattern 200
 python main.py cli pwn find-pattern-offset 0x41366141
 python main.py cli pwn find-rop-gadgets pwn_challenge
 
-# 杂项
+# Misc / 杂项
 python main.py cli misc morse-decode ".... . .-.. .-.. ---"
 python main.py cli misc jwt-decode "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoiYWRtaW4ifQ.xxx"
 python main.py cli misc timestamp-convert "1700000000"
 
-# 自动扫描
+# Auto Scan / 自动扫描
 python main.py cli scan-text "SGVsbG8gV29ybGQ=" --output result.json --format json
 python main.py cli scan-file challenge.png --output report.html --format html
 python main.py cli scan-url "http://target.com/" --output scan.json --format json
 
-# 操作历史
-python main.py cli history                    # 查看最近 20 条
-python main.py cli history --search "rsa"     # 搜索包含 rsa 的记录
-python main.py cli history --flags            # 只看发现的 Flag
-python main.py cli history --clear            # 清空历史
-python main.py cli history --limit 50         # 查看最近 50 条
+# Operation History / 操作历史
+python main.py cli history                    # View recent 20 / 查看最近 20 条
+python main.py cli history --search "rsa"     # Search / 搜索
+python main.py cli history --flags            # View found flags / 查看 Flag
+python main.py cli history --clear            # Clear history / 清空历史
+python main.py cli history --limit 50         # View recent 50 / 最近 50 条
 ```
 
-### CLI 全局选项
+### Global Options / 全局选项
 
 ```bash
-python main.py cli --verbose crypto rot13 "Hello"   # 启用详细日志
+python main.py cli --verbose crypto rot13 "Hello"   # Enable debug logging / 启用详细日志
 ```
 
 ---
 
-## 配置说明
+## Configuration / 配置说明
 
-### 配置目录
+### Config Directory / 配置目录
+
+All config files are stored in `~/.ctf-tool/`:
 
 所有配置文件存放在 `~/.ctf-tool/` 目录下：
 
-| 文件 | 说明 |
-|------|------|
-| `language.json` | 语言偏好（zh/en） |
-| `flag_patterns.json` | 自定义 Flag 正则表达式 |
-| `history.json` | 操作历史（最多 500 条） |
-| `config.json` | 全局配置（超时/代理/输出目录等） |
+| File / 文件 | Description / 说明 |
+|---|---|
+| `language.json` | Language preference (zh/en) / 语言偏好 |
+| `flag_patterns.json` | Custom flag regex patterns / 自定义 Flag 正则 |
+| `history.json` | Operation history (max 500) / 操作历史 |
+| `config.json` | Global config (timeout/proxy/output dir) / 全局配置 |
 
-### 自定义 Flag 格式
+### Custom Flag Format / 自定义 Flag 格式
 
-在 GUI 中点击工具栏的 Flag 设置按钮，可以添加自定义 Flag 格式。每行输入一个示例：
+In GUI, click the Flag settings button and enter examples (one per line):
+
+在 GUI 中点击 Flag 设置按钮，每行输入一个示例：
 
 ```
 DASCTF{this_is_flag}
@@ -663,41 +668,60 @@ HGAME{sample_flag}
 MyCustom{example}
 ```
 
-程序会自动将示例转换为正则表达式进行匹配。
+The program auto-converts examples to regex patterns. / 程序会自动转换为正则表达式。
 
-### 语言切换
+### Language Switch / 语言切换
 
-- GUI：点击右上角语言切换按钮（中/EN）
-- 设置会自动保存到 `~/.ctf-tool/language.json`
+- GUI: Click the language button (CN/EN) in the top-right corner / 点击右上角语言按钮
+- Settings auto-save to `~/.ctf-tool/language.json` / 自动保存
+- Default: English (auto-detects Chinese systems) / 默认英文（自动检测中文系统）
 
-### 可选依赖
+### Optional Dependencies / 可选依赖
 
 ```bash
-pip install pyzbar      # QR码/条码解码
-pip install rarfile     # RAR 压缩包
-pip install uncompyle6  # Python .pyc 反编译
-pip install hashpumpy   # 哈希长度扩展攻击
-pip install pytesseract # OCR 文字识别
+pip install pyzbar      # QR/Barcode decode / 二维码解码
+pip install rarfile     # RAR archives / RAR 压缩包
+pip install uncompyle6  # Python .pyc decompile / 反编译
+pip install hashpumpy   # Hash length extension / 哈希长度扩展
+pip install pytesseract # OCR text recognition / OCR 识别
 ```
 
 ---
 
-## 常见问题
+## FAQ / 常见问题
 
+### Q: Program shows integrity check failed at startup?
 ### Q: 程序启动时提示完整性校验失败？
+A: The program verifies critical file integrity. Download from official Release and don't modify files in the `docs/` directory.
+
 A: 程序会校验关键文件的完整性。请从官方 Release 下载，不要修改 docs/ 目录下的文件。
 
+### Q: How to select files during auto scan?
 ### Q: 自动扫描文件时如何选择文件？
-A: 选择"文件扫描"类型后，可以点击"选择文件"按钮，或直接在输入框中输入文件路径。
+A: After selecting "File Scan" type, click the "Select File" button or enter the file path directly.
 
+A: 选择"文件扫描"类型后，点击"选择文件"按钮或直接输入文件路径。
+
+### Q: How to configure Cookie/Header for Web scan?
 ### Q: Web 扫描如何配置 Cookie/Header？
-A: 在自动扫描面板的 curl 输入框中粘贴 curl 命令（如 `curl 'http://target.com' -H 'Cookie: session=abc'`），程序会自动解析并配置请求上下文。
+A: Paste a curl command in the curl input box (e.g., `curl 'http://target.com' -H 'Cookie: session=abc'`). The program auto-parses and configures the request context.
 
+A: 在 curl 输入框中粘贴 curl 命令，程序会自动解析并配置请求上下文。
+
+### Q: Which flag formats are auto-detected?
 ### Q: Flag 自动检测支持哪些格式？
-A: 支持 30+ 种 CTF 比赛 Flag 格式（flag{}, CTF{}, DASCTF{}, picoCTF{}, HTB{} 等），以及通用的 `XXX{...}` 格式。还会自动递归解码（Base64/Hex/URL/Base32/ROT13）最多 5 层。
+A: 30+ CTF competition formats (flag{}, CTF{}, DASCTF{}, picoCTF{}, HTB{}, etc.) and the generic `XXX{...}` pattern. Auto recursive decode (Base64/Hex/URL/Base32/ROT13) up to 5 layers.
 
-### Q: 如何添加自定义 Flag 格式？
-A: GUI 中点击 Flag 设置按钮，输入示例即可。CLI 模式不支持自定义 Flag。
+A: 支持 30+ 种 CTF 比赛格式，以及通用 `XXX{...}` 格式。自动递归解码最多 5 层。
 
+### Q: Which OS are supported?
 ### Q: 支持哪些操作系统？
+A: Windows (x64), macOS (ARM64/Intel), Linux (x64). Pre-built executables for all 4 platforms available on the Release page.
+
 A: Windows (x64)、macOS (ARM64/Intel)、Linux (x64)。Release 页面提供四个平台的可执行文件。
+
+### Q: Does the tool work offline?
+### Q: 离线环境能使用吗？
+A: Yes. 292 out of 294 features work fully offline. Only `rsa_factordb` (factordb.com API) and `hash_crack_online` (nitrxgen.net API) require internet access; they return a helpful error message when offline.
+
+A: 可以。294 个功能中 292 个完全离线可用。仅 `rsa_factordb` 和 `hash_crack_online` 需要外网，离线时返回错误提示。
