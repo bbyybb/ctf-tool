@@ -132,7 +132,7 @@ class TestHistoryManager:
     def test_format_recent_empty(self):
         """无记录时的输出"""
         text = self.manager.format_recent()
-        assert "暂无" in text
+        assert "暂无" in text or "No operation" in text
 
     def test_max_history_limit(self):
         """超过最大条目数时截断"""

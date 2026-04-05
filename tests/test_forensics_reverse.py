@@ -8,23 +8,6 @@ import sys
 import tempfile
 import zlib
 
-
-def _safe_unlink(path):
-    """跨平台安全删除临时文件（Windows 上 scapy 等库可能持有文件句柄）"""
-    try:
-        os.unlink(path)
-    except PermissionError:
-        # Windows: 文件可能仍被 scapy 锁定，强制 GC 后重试
-        gc.collect()
-        try:
-            os.unlink(path)
-        except PermissionError:
-            if sys.platform == "win32":
-                pass  # Windows CI 上放弃清理，由 OS 回收
-            else:
-                raise
-
-
 from ctftool.core.utils import (
     bytes_to_int,
     entropy,
@@ -36,6 +19,21 @@ from ctftool.core.utils import (
 )
 from ctftool.modules.forensics import ForensicsModule
 from ctftool.modules.reverse import ReverseModule
+
+
+def _safe_unlink(path):
+    """跨平台安全删除临时文件（Windows 上 scapy 等库可能持有文件句柄）"""
+    try:
+        os.unlink(path)
+    except PermissionError:
+        gc.collect()
+        try:
+            os.unlink(path)
+        except PermissionError:
+            if sys.platform == "win32":
+                pass
+            else:
+                raise
 
 # ========== core/utils 测试 ==========
 
@@ -478,7 +476,6 @@ class TestForensicsBatch12Features:
             os.unlink(path)
 
     def test_pcap_extract_http_non_pcap(self):
-        import os
         import tempfile
         with tempfile.NamedTemporaryFile(suffix='.pcap', delete=False, mode='wb') as f:
             f.write(b'not a pcap')
@@ -599,7 +596,6 @@ class TestForensicsBatch13:
             os.unlink(path)
 
     def test_detect_dns_tunnel_not_pcap(self):
-        import os
         import tempfile
         with tempfile.NamedTemporaryFile(suffix='.pcap', delete=False) as f:
             f.write(b"not a pcap file")

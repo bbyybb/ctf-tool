@@ -3,7 +3,6 @@
 
 import os
 
-from ctftool import __version__
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
@@ -16,6 +15,7 @@ from textual.widgets import (
     Static,
 )
 
+from ctftool import __version__
 from ctftool.ui.screens import (
     AutoScanScreen,
     CryptoScreen,

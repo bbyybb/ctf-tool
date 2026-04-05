@@ -169,7 +169,6 @@ class TestPwnAutoAnalysis:
     """测试 Pwn 自动化分析方法（使用最小 ELF 文件）"""
 
     def setup_method(self):
-        import os
         import tempfile
         self.pwn = PwnModule()
         # 创建最小 ELF 文件

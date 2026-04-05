@@ -171,7 +171,6 @@ class TestCLIIntegration:
     def test_cli_crypto_pipeline(self):
         """CLI crypto 命令完整流水线：输入 -> 处理 -> 输出 -> 历史记录"""
         from ctftool.cli import build_parser, cmd_crypto
-        from ctftool.core.history import history
 
         # 模拟 CLI 调用
         parser = build_parser()

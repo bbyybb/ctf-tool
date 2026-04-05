@@ -221,7 +221,7 @@ class TestModernCrypto:
 
     def test_rsa_factordb(self):
         # mock 网络请求避免 CI 中依赖外部服务
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import MagicMock, patch
         mock_resp = MagicMock()
         mock_resp.json.return_value = {"factors": {"11": 1, "13": 1}, "status": "FF"}
         with patch("requests.get", return_value=mock_resp):
@@ -616,7 +616,7 @@ class TestNewFeatures2:
 
     def test_hash_crack_online(self):
         # mock 网络请求避免 CI 中依赖外部服务
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import MagicMock, patch
         mock_resp = MagicMock()
         mock_resp.text = "hello"
         mock_resp.status_code = 200
