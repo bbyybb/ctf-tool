@@ -98,6 +98,7 @@ class AutoScanner:
             ("Swagger/OpenAPI 探测", lambda: web.detect_swagger(url)),
             ("目录列表递归爬取", lambda: web.dir_listing_crawl(url)),
             ("SQL 时间盲注", lambda: web.sqli_time_blind(url)),
+            ("CSRF 检测", lambda: web.detect_csrf(url)),
         ]
 
         def _run_one(name, action):
@@ -255,6 +256,10 @@ class AutoScanner:
         # ========== APK 文件 ==========
         if ext == '.apk' or (ext == '.zip' and b'classes.dex' in data[:10000] if len(data) > 100 else False):
             actions.append(("Reverse", "APK 分析", lambda: reverse.analyze_apk(filepath)))
+
+        # ========== IPA 文件 ==========
+        if ext == '.ipa':
+            actions.append(("Reverse", "IPA 分析", lambda: reverse.analyze_ipa(filepath)))
 
         # ========== Python 字节码 ==========
         if ext in ('.pyc', '.pyo'):

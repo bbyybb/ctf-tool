@@ -1509,3 +1509,173 @@ class ReverseModule:
         lines.append(f"  IDA + Rust {t('rev.plugin')} - {t('rev.reverse_analysis')}")
 
         return '\n'.join(lines)
+
+    def analyze_ipa(self, filepath: str) -> str:
+        """iOS IPA 文件分析"""
+        import plistlib
+        import zipfile
+
+        basename = os.path.basename(filepath)
+        lines = [f"=== iOS IPA {t('rev.analysis')}: {basename} ===", ""]
+
+        # IPA 是 ZIP 格式
+        if not zipfile.is_zipfile(filepath):
+            return f"[-] {basename} {t('rev.ipa.not_ipa')}"
+
+        with zipfile.ZipFile(filepath, 'r') as zf:
+            entries = zf.namelist()
+            lines.append(f"[*] {t('rev.ipa.total_files')}: {len(entries)}")
+
+            # 查找 .app 目录
+            app_dirs = [e for e in entries if e.startswith('Payload/') and e.endswith('.app/')]
+            if not app_dirs:
+                app_dirs = [e for e in entries if '.app/' in e]
+            app_prefix = app_dirs[0] if app_dirs else "Payload/App.app/"
+            app_name = app_prefix.split('/')[-2] if '/' in app_prefix else "Unknown"
+            lines.append(f"[*] App: {app_name}")
+
+            # Info.plist 解析
+            plist_path = f"{app_prefix}Info.plist"
+            lines.append("\n=== Info.plist ===")
+            if plist_path in entries:
+                try:
+                    plist_data = zf.read(plist_path)
+                    info = plistlib.loads(plist_data)
+                    key_fields = [
+                        ('CFBundleIdentifier', 'Bundle ID'),
+                        ('CFBundleName', 'App Name'),
+                        ('CFBundleShortVersionString', 'Version'),
+                        ('CFBundleVersion', 'Build'),
+                        ('MinimumOSVersion', 'Min iOS'),
+                        ('CFBundleExecutable', 'Executable'),
+                        ('DTSDKName', 'SDK'),
+                        ('DTPlatformName', 'Platform'),
+                    ]
+                    for key, label in key_fields:
+                        if key in info:
+                            lines.append(f"  {label}: {info[key]}")
+
+                    # URL Schemes
+                    url_types = info.get('CFBundleURLTypes', [])
+                    if url_types:
+                        lines.append("\n  URL Schemes:")
+                        for ut in url_types:
+                            schemes = ut.get('CFBundleURLSchemes', [])
+                            for s in schemes:
+                                lines.append(f"    - {s}://")
+
+                    # App Transport Security
+                    ats = info.get('NSAppTransportSecurity', {})
+                    if ats:
+                        lines.append("\n  App Transport Security:")
+                        if ats.get('NSAllowsArbitraryLoads'):
+                            lines.append(f"    [!] NSAllowsArbitraryLoads = YES ({t('rev.ipa.ats_disabled')})")
+                        else:
+                            lines.append(f"    [+] ATS {t('rev.ipa.ats_enabled')}")
+
+                    # 权限 (Privacy keys)
+                    lines.append(f"\n  {t('rev.ipa.permissions')}:")
+                    permission_count = 0
+                    for key, val in info.items():
+                        if key.startswith('NS') and 'UsageDescription' in key:
+                            perm_name = key.replace('NS', '').replace('UsageDescription', '')
+                            lines.append(f"    - {perm_name}: {val}")
+                            permission_count += 1
+                    if permission_count == 0:
+                        lines.append(f"    ({t('rev.ipa.no_permissions')})")
+
+                except Exception as e:
+                    lines.append(f"  [{t('rev.ipa.parse_fail')}]: {e}")
+            else:
+                lines.append(f"  [-] Info.plist {t('rev.not_found')}")
+
+            # Mach-O 二进制检测
+            lines.append(f"\n=== Mach-O {t('rev.analysis')} ===")
+            exe_name = app_name
+            try:
+                if plist_path in entries:
+                    plist_data = zf.read(plist_path)
+                    info = plistlib.loads(plist_data)
+                    exe_name = info.get('CFBundleExecutable', app_name)
+            except Exception:
+                pass
+
+            exe_path = f"{app_prefix}{exe_name}"
+            if exe_path in entries:
+                exe_data = zf.read(exe_path)
+                # Mach-O magic numbers
+                if len(exe_data) >= 4:
+                    magic = int.from_bytes(exe_data[:4], 'little')
+                    magic_map = {
+                        0xfeedface: "Mach-O 32-bit",
+                        0xfeedfacf: "Mach-O 64-bit",
+                        0xcafebabe: "Universal (FAT) Binary",
+                        0xbebafeca: "Universal (FAT) Binary (swapped)",
+                    }
+                    mtype = magic_map.get(magic, f"Unknown (0x{magic:08x})")
+                    lines.append(f"  {t('rev.ipa.binary_type')}: {mtype}")
+                    lines.append(f"  {t('rev.ipa.binary_size')}: {len(exe_data):,} bytes")
+
+                    # 检查加密标记 (LC_ENCRYPTION_INFO)
+                    if b'cryptid' in exe_data or b'\x21\x00\x00\x00' in exe_data[:1024]:
+                        lines.append(f"  [!] {t('rev.ipa.encrypted')}")
+                    else:
+                        lines.append(f"  [+] {t('rev.ipa.not_encrypted')}")
+            else:
+                lines.append(f"  [-] {exe_name} {t('rev.not_found')}")
+
+            # 框架依赖
+            frameworks = [e for e in entries if '.framework/' in e and e.endswith('/')]
+            fw_names = list(set(e.split('.framework/')[0].split('/')[-1] for e in frameworks if '.framework/' in e))
+            if fw_names:
+                lines.append(f"\n=== Frameworks ({len(fw_names)}) ===")
+                for fw in sorted(fw_names)[:30]:
+                    lines.append(f"  - {fw}.framework")
+
+            # 字符串提取（搜索 URL/API/密钥）
+            lines.append(f"\n=== {t('rev.ipa.sensitive_strings')} ===")
+            if exe_path in entries:
+                exe_data = zf.read(exe_path)
+                text = extract_printable_strings(exe_data, min_length=8)
+                sensitive = []
+                for line_str in text.split('\n'):
+                    s = line_str.strip()
+                    if any(kw in s.lower() for kw in ['http://', 'https://', 'api.', '/api/',
+                                                       'secret', 'password', 'token', 'key=',
+                                                       'firebase', 'amazonaws']):
+                        sensitive.append(s)
+                if sensitive:
+                    for s in sensitive[:20]:
+                        lines.append(f"  {s}")
+                    if len(sensitive) > 20:
+                        lines.append(f"  ... (+{len(sensitive) - 20} more)")
+                else:
+                    lines.append(f"  ({t('rev.ipa.no_sensitive')})")
+
+            # Entitlements
+            ent_path = f"{app_prefix}embedded.mobileprovision"
+            if ent_path in entries:
+                lines.append("\n=== Entitlements ===")
+                try:
+                    prov_data = zf.read(ent_path)
+                    # 提取 plist 部分
+                    start = prov_data.find(b'<?xml')
+                    end = prov_data.find(b'</plist>') + len(b'</plist>')
+                    if start >= 0 and end > start:
+                        plist_xml = prov_data[start:end]
+                        prov = plistlib.loads(plist_xml)
+                        ents = prov.get('Entitlements', {})
+                        for key, val in ents.items():
+                            lines.append(f"  {key}: {val}")
+                except Exception:
+                    lines.append(f"  ({t('rev.ipa.parse_fail')})")
+
+        # 推荐工具
+        lines.append(f"\n=== {t('rev.recommended_tools')} ===")
+        lines.append(f"  class-dump — {t('rev.ipa.tool_classdump')}")
+        lines.append(f"  Hopper/IDA — {t('rev.ipa.tool_disasm')}")
+        lines.append(f"  Frida — {t('rev.ipa.tool_frida')}")
+        lines.append(f"  objection — {t('rev.ipa.tool_objection')}")
+        lines.append(f"  MachOView — {t('rev.ipa.tool_machoview')}")
+
+        return '\n'.join(lines)

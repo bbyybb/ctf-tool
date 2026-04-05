@@ -329,6 +329,42 @@ class TestWebConfigure:
         self.web.configure()
 
 
+class TestCSRFDetection:
+    """测试 CSRF 检测"""
+
+    def setup_method(self):
+        self.web = WebModule(timeout=2)
+
+    def test_detect_csrf_unreachable(self):
+        result = self.web.detect_csrf("http://127.0.0.1:1/")
+        assert isinstance(result, str)
+        assert "CSRF" in result or "connect" in result.lower()
+
+    def test_detect_csrf_no_crash(self):
+        result = self.web.detect_csrf("http://127.0.0.1:19999/")
+        assert isinstance(result, str)
+
+
+class TestFileUploadHelper:
+    """测试文件上传绕过辅助"""
+
+    def setup_method(self):
+        self.web = WebModule(timeout=2)
+
+    def test_file_upload_helper_basic(self):
+        result = self.web.file_upload_helper()
+        assert isinstance(result, str)
+        assert "Content-Type" in result
+        assert ".php" in result
+        assert ".htaccess" in result
+        assert "GIF89a" in result
+
+    def test_file_upload_helper_with_url(self):
+        result = self.web.file_upload_helper("http://example.com/upload")
+        assert isinstance(result, str)
+        assert "Content-Type" in result
+
+
 class TestSqliTimeBlind:
     """测试 sqli_time_blind（不可达 URL 模式）"""
 

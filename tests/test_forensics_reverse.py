@@ -1026,3 +1026,36 @@ class TestLatestForensicsFeatures:
             assert len(result) > 0
         finally:
             os.unlink(path)
+
+
+class TestIPAAnalysis:
+    """iOS IPA 分析测试"""
+
+    def setup_method(self):
+        self.r = ReverseModule()
+
+    def test_analyze_ipa_not_zip(self):
+        """非 ZIP 文件"""
+        fd, path = tempfile.mkstemp(suffix='.ipa')
+        os.write(fd, b'not a zip file')
+        os.close(fd)
+        try:
+            result = self.r.analyze_ipa(path)
+            assert isinstance(result, str)
+            assert "IPA" in result or "not" in result.lower()
+        finally:
+            os.unlink(path)
+
+    def test_analyze_ipa_empty_zip(self):
+        """空 ZIP 文件"""
+        import zipfile as zf
+        fd, path = tempfile.mkstemp(suffix='.ipa')
+        os.close(fd)
+        with zf.ZipFile(path, 'w') as z:
+            z.writestr('Payload/Test.app/Info.plist', b'not a plist')
+        try:
+            result = self.r.analyze_ipa(path)
+            assert isinstance(result, str)
+            assert "IPA" in result
+        finally:
+            os.unlink(path)

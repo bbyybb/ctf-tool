@@ -321,13 +321,21 @@ class ModulePanel(QWidget):
         )
 
     def _on_result(self, result: str):
+        # 自动检测 Flag 并追加提示
+        flags = flag_finder.search_with_decode(result)
+        if flags:
+            flag_hint = f"\n{'=' * 50}\n"
+            flag_hint += f"[!] {t('msg.flag_auto_found')} ({len(flags)}):\n"
+            for f in flags:
+                flag_hint += f"    >> {f}\n"
+            flag_hint += f"{'=' * 50}"
+            result = result + flag_hint
         self._set_highlighted_output(result)
         self.run_btn.setEnabled(True)
         self._check_flags(result)
         # 记录操作历史
         action = self.action_combo.currentData() or ""
         module_name = self.__class__.__name__.replace("Panel", "").lower()
-        flags = flag_finder.search(result)
         history.add(module_name, action, self.get_input()[:200], result, flags)
 
     def _on_error(self, error: str):
@@ -647,6 +655,8 @@ class WebPanel(ModulePanel):
         ("act.dir_listing_crawl", "dir_listing_crawl"),
         ("act.sqli_auto_exploit", "sqli_auto_exploit"),
         ("act.sqli_time_blind", "sqli_time_blind"),
+        ("act.detect_csrf", "detect_csrf"),
+        ("act.file_upload_helper", "file_upload_helper"),
     ]
 
     def _setup_params(self):
@@ -691,7 +701,7 @@ class WebPanel(ModulePanel):
         action = self.action_combo.currentData()
         if not action:
             return
-        NO_INPUT = {'prototype_pollution_helper', 'race_condition_helper', 'deserialize_helper'}
+        NO_INPUT = {'prototype_pollution_helper', 'race_condition_helper', 'deserialize_helper', 'file_upload_helper'}
         JWT_INPUT = {'jwt_forge_none', 'jwt_crack'}
         PAYLOAD_GEN = {'generate_payload', 'gen_sqli', 'gen_xss', 'gen_ssti'}
         CONFIG_INPUT = {'configure', 'parse_curl'}
@@ -737,7 +747,9 @@ class WebPanel(ModulePanel):
             if data:
                 data_str = data
                 self.data_input.setText(data_str)
-        if action in ('prototype_pollution_helper', 'race_condition_helper', 'deserialize_helper'):
+        no_input = ('prototype_pollution_helper', 'race_condition_helper',
+                    'deserialize_helper', 'file_upload_helper')
+        if action in no_input:
             self._run_async(self._do, action, "", "", "", "")
         else:
             self._run_async(self._do, action, text, curl_cmd, headers_str, data_str)
@@ -762,7 +774,9 @@ class WebPanel(ModulePanel):
             return web.jwt_forge_none(text)
         if action == "jwt_crack":
             return web.jwt_crack(text)
-        if action in ("prototype_pollution_helper", "race_condition_helper", "deserialize_helper"):
+        no_input = ("prototype_pollution_helper", "race_condition_helper",
+                    "deserialize_helper", "file_upload_helper")
+        if action in no_input:
             return getattr(web, action)()
         # sqli_time_blind 支持进度回调
         if action == "sqli_time_blind":
@@ -895,6 +909,7 @@ class ReversePanel(ModulePanel):
         ("act.yara_scan", "yara_scan"),
         ("act.deobfuscate_strings", "deobfuscate_strings"),
         ("act.analyze_rust_binary", "analyze_rust_binary"),
+        ("act.analyze_ipa", "analyze_ipa"),
     ]
 
     def _setup_params(self):
@@ -931,6 +946,61 @@ class ReversePanel(ModulePanel):
         if action == "disassemble":
             return r.disassemble(filepath, offset=offset)
         return getattr(r, action)(filepath)
+
+
+# ===================== 区块链面板 =====================
+
+class BlockchainPanel(ModulePanel):
+    module_name = "mod.blockchain"
+    show_file_btn = False
+    show_send_crypto = False
+    input_placeholder = "输入 Solidity 源码 / ABI 数据 / 字节码 | Enter Solidity source / ABI data / bytecode"
+    actions = [
+        ("act.analyze_contract", "analyze_contract"),
+        ("act.detect_reentrancy", "detect_reentrancy"),
+        ("act.detect_integer_overflow", "detect_integer_overflow"),
+        ("act.detect_tx_origin", "detect_tx_origin"),
+        ("act.detect_selfdestruct", "detect_selfdestruct"),
+        ("act.detect_unchecked_call", "detect_unchecked_call"),
+        ("act.abi_decode", "abi_decode"),
+        ("act.abi_encode", "abi_encode"),
+        ("act.selector_lookup", "selector_lookup"),
+        ("act.disasm_bytecode", "disasm_bytecode"),
+        ("act.storage_layout_helper", "storage_layout_helper"),
+        ("act.flashloan_template", "flashloan_template"),
+        ("act.reentrancy_exploit_template", "reentrancy_exploit_template"),
+        ("act.evm_puzzle_helper", "evm_puzzle_helper"),
+        ("act.common_patterns", "common_patterns"),
+    ]
+
+    NO_INPUT = {'flashloan_template', 'reentrancy_exploit_template',
+                'evm_puzzle_helper', 'common_patterns'}
+
+    def _on_action_changed(self, index):
+        action = self.action_combo.currentData()
+        if not action:
+            return
+        if action in self.NO_INPUT:
+            self.input_text.setPlaceholderText("无需输入，直接运行 | No input needed, just run")
+        elif action in ('abi_decode', 'disasm_bytecode'):
+            self.input_text.setPlaceholderText("输入十六进制数据 | Enter hex data (e.g., 0x60606040...)")
+        elif action in ('abi_encode', 'selector_lookup'):
+            self.input_text.setPlaceholderText(
+                "输入函数签名 | e.g., transfer(address,uint256)")
+        elif action == 'storage_layout_helper':
+            self.input_text.setPlaceholderText(
+                "输入变量声明 | e.g., uint256 x;\\naddress owner;")
+        else:
+            self.input_text.setPlaceholderText("输入 Solidity 源码 | Enter Solidity source code")
+
+    def _execute(self, action):
+        text = self.get_input()
+        self._run_async(self._do, action, text)
+
+    def _do(self, action, text):
+        from ctftool.modules.blockchain import BlockchainModule
+        bc = BlockchainModule()
+        return getattr(bc, action)(text)
 
 
 # ===================== Pwn 面板 =====================
@@ -1413,8 +1483,10 @@ class AutoScanPanel(QWidget):
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         self.progress_bar.setStyleSheet(
-            "QProgressBar { background-color: #313244; border: 1px solid #45475a; border-radius: 4px; text-align: center; color: #cdd6f4; }"
-            "QProgressBar::chunk { background-color: #89b4fa; border-radius: 3px; }"
+            "QProgressBar { background-color: #313244; border: 1px solid #45475a;"
+            " border-radius: 4px; text-align: center; color: #cdd6f4; }"
+            "QProgressBar::chunk { background-color: #89b4fa;"
+            " border-radius: 3px; }"
         )
         layout.addWidget(self.progress_bar)
 
@@ -1715,13 +1787,14 @@ class MainWindow(QMainWindow):
         self.web = WebPanel()
         self.forensics = ForensicsPanel()
         self.reverse = ReversePanel()
+        self.blockchain = BlockchainPanel()
         self.pwn = PwnPanel()
         self.misc = MiscPanel()
         self.rsa = RSAPanel()
 
         panels = [
             self.auto_scan, self.crypto, self.web, self.forensics,
-            self.reverse, self.pwn, self.misc, self.rsa,
+            self.reverse, self.blockchain, self.pwn, self.misc, self.rsa,
         ]
         for panel in panels:
             self.pages.addWidget(panel)
@@ -1757,8 +1830,8 @@ class MainWindow(QMainWindow):
         self.nav_list.clear()
         nav_keys = [
             ("0", "nav.autoscan"), ("1", "nav.crypto"), ("2", "nav.web"),
-            ("3", "nav.forensics"), ("4", "nav.reverse"), ("5", "nav.pwn"),
-            ("6", "nav.misc"), ("7", "nav.rsa"),
+            ("3", "nav.forensics"), ("4", "nav.reverse"), ("5", "nav.blockchain"),
+            ("6", "nav.pwn"), ("7", "nav.misc"), ("8", "nav.rsa"),
         ]
         for num, key in nav_keys:
             item = QListWidgetItem(f"[ {num} ]  {t(key)}")
@@ -2034,8 +2107,45 @@ class MainWindow(QMainWindow):
             ))
         layout.addWidget(input_box, 1)
 
+        # 内置格式展示（可折叠）
+        from ctftool.core.flag_finder import DEFAULT_FLAG_PATTERNS
+        builtin_count = len(DEFAULT_FLAG_PATTERNS)
+        builtin_label = QLabel(f"▶ {t('flag.builtin_title')} ({builtin_count})")
+        builtin_label.setStyleSheet("color: #89b4fa; cursor: pointer;")
+        layout.addWidget(builtin_label)
+
+        builtin_text = QTE()
+        builtin_text.setReadOnly(True)
+        builtin_text.setMaximumHeight(120)
+        builtin_text.setFont(_mono_font(9))
+        # 提取前缀名展示
+        prefixes = []
+        for p in DEFAULT_FLAG_PATTERNS[:-1]:  # 最后一个是通用模式
+            prefix = p.split(r'\{')[0].replace('\\', '')
+            prefixes.append(prefix + "{...}")
+        generic = DEFAULT_FLAG_PATTERNS[-1]
+        builtin_display = ", ".join(prefixes)
+        builtin_display += f"\n\n{t('flag.generic_pattern')}: {generic}"
+        builtin_display += f"\n{t('flag.generic_desc')}"
+        builtin_text.setPlainText(builtin_display)
+        builtin_text.setVisible(False)
+        layout.addWidget(builtin_text)
+
+        # 点击展开/折叠
+        def _toggle_builtin():
+            vis = not builtin_text.isVisible()
+            builtin_text.setVisible(vis)
+            builtin_label.setText(
+                f"{'▼' if vis else '▶'} {t('flag.builtin_title')} ({builtin_count})"
+            )
+        builtin_label.mousePressEvent = lambda _: _toggle_builtin()
+
         # 当前所有规则显示
-        rules_label = QLabel(f"{t('flag.total_rules')} {len(flag_finder._compiled)}")
+        custom_count = len(flag_finder._compiled) - builtin_count
+        rules_label = QLabel(
+            f"{t('flag.total_rules')} {len(flag_finder._compiled)} "
+            f"({t('flag.builtin_count')} {builtin_count}, {t('flag.custom_count')} {custom_count})"
+        )
         layout.addWidget(rules_label)
 
         # 按钮

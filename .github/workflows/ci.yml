@@ -142,6 +142,7 @@ jobs:
             --hidden-import ctftool.modules.reverse \
             --hidden-import ctftool.modules.pwn \
             --hidden-import ctftool.modules.misc \
+            --hidden-import ctftool.modules.blockchain \
             --hidden-import ctftool.core.flag_finder \
             --hidden-import ctftool.core.scanner \
             --hidden-import ctftool.core.utils \

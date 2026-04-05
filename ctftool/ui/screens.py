@@ -108,7 +108,16 @@ class ModuleScreen(Screen):
         return self.query_one("#input-text", TextArea).text.strip()
 
     def _set_output(self, text: str):
-        """设置输出文本并记录历史"""
+        """设置输出文本并记录历史，自动检测 Flag"""
+        # 自动检测 Flag 并追加提示
+        flags = flag_finder.search_with_decode(text)
+        if flags:
+            flag_hint = f"\n{'=' * 50}\n"
+            flag_hint += f"[!] {t('msg.flag_auto_found')} ({len(flags)}):\n"
+            for f in flags:
+                flag_hint += f"    >> {f}\n"
+            flag_hint += f"{'=' * 50}"
+            text = text + flag_hint
         panel = self.query_one("#output-text", OutputPanel)
         panel.set_output(text)
         self._check_flags(text)
@@ -335,6 +344,8 @@ class WebScreen(ModuleScreen):
         ("act.dir_listing_crawl", "dir_listing_crawl"),
         ("act.sqli_auto_exploit", "sqli_auto_exploit"),
         ("act.sqli_time_blind", "sqli_time_blind"),
+        ("act.detect_csrf", "detect_csrf"),
+        ("act.file_upload_helper", "file_upload_helper"),
     ]
 
     def action_run_action(self):
@@ -344,7 +355,11 @@ class WebScreen(ModuleScreen):
             self._set_output(t("msg.select_action"))
             return
         text = self._get_input()
-        if not text:
+        no_input_actions = {
+            'deserialize_helper', 'prototype_pollution_helper',
+            'race_condition_helper', 'file_upload_helper',
+        }
+        if not text and action not in no_input_actions:
             self._set_output(t("msg.enter_target"))
             return
         self._set_output(t("msg.scanning"))
@@ -353,6 +368,10 @@ class WebScreen(ModuleScreen):
     def _do_web(self, action, text):
         from ctftool.modules.web import WebModule
         web = WebModule()
+        no_input_actions = {
+            'deserialize_helper', 'prototype_pollution_helper',
+            'race_condition_helper', 'file_upload_helper',
+        }
         try:
             if action.startswith("gen_"):
                 result = web.generate_payload(action[4:])
@@ -360,6 +379,8 @@ class WebScreen(ModuleScreen):
                 result = web.jwt_forge_none(text)
             elif action == "jwt_crack":
                 result = web.jwt_crack(text)
+            elif action in no_input_actions:
+                result = getattr(web, action)()
             elif hasattr(web, action):
                 result = getattr(web, action)(text)
             else:
@@ -492,6 +513,7 @@ class ReverseScreen(ModuleScreen):
         ("act.yara_scan", "yara_scan"),
         ("act.deobfuscate_strings", "deobfuscate_strings"),
         ("act.analyze_rust_binary", "analyze_rust_binary"),
+        ("act.analyze_ipa", "analyze_ipa"),
     ]
 
     def compose_params(self):
@@ -534,6 +556,48 @@ class ReverseScreen(ModuleScreen):
                 result = getattr(reverse, action)(filepath)
             else:
                 result = f"{t('msg.unknown_action')}: {action}"
+            self.app.call_from_thread(self._set_output, result)
+        except Exception as e:
+            self.app.call_from_thread(self._set_output, f"错误: {e}")
+
+
+# ======================== Blockchain ========================
+
+class BlockchainScreen(ModuleScreen):
+    module_name = "mod.blockchain"
+    actions = [
+        ("act.analyze_contract", "analyze_contract"),
+        ("act.detect_reentrancy", "detect_reentrancy"),
+        ("act.detect_integer_overflow", "detect_integer_overflow"),
+        ("act.detect_tx_origin", "detect_tx_origin"),
+        ("act.detect_selfdestruct", "detect_selfdestruct"),
+        ("act.detect_unchecked_call", "detect_unchecked_call"),
+        ("act.abi_decode", "abi_decode"),
+        ("act.abi_encode", "abi_encode"),
+        ("act.selector_lookup", "selector_lookup"),
+        ("act.disasm_bytecode", "disasm_bytecode"),
+        ("act.storage_layout_helper", "storage_layout_helper"),
+        ("act.flashloan_template", "flashloan_template"),
+        ("act.reentrancy_exploit_template", "reentrancy_exploit_template"),
+        ("act.evm_puzzle_helper", "evm_puzzle_helper"),
+        ("act.common_patterns", "common_patterns"),
+    ]
+
+    def action_run_action(self):
+        select = self.query_one("#action-select", Select)
+        action = select.value
+        if action == Select.BLANK:
+            self._set_output(t("msg.select_action"))
+            return
+        text = self._get_input()
+        self._set_output(t("msg.processing"))
+        self.run_worker(partial(self._do_blockchain, action, text), thread=True)
+
+    def _do_blockchain(self, action, text):
+        from ctftool.modules.blockchain import BlockchainModule
+        bc = BlockchainModule()
+        try:
+            result = getattr(bc, action)(text)
             self.app.call_from_thread(self._set_output, result)
         except Exception as e:
             self.app.call_from_thread(self._set_output, f"错误: {e}")

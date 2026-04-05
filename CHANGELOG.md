@@ -6,6 +6,22 @@ All notable changes will be documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.0] - 2026-04-06
+
+### Added / 新增
+- **Blockchain**: 新增区块链安全模块（15 个方法）— Solidity 漏洞检测/ABI 编解码/EVM 反汇编/攻击模板 / New Blockchain module (15 methods): Solidity vuln detection, ABI encode/decode, EVM disasm, exploit templates
+- **Web**: CSRF 跨站请求伪造检测 (`detect_csrf`) / CSRF detection
+- **Web**: 文件上传绕过辅助 (`file_upload_helper`) — Content-Type/扩展名/图片马/竞争条件 / File upload bypass helper
+- **Reverse**: iOS IPA 文件分析 (`analyze_ipa`) — Info.plist/Mach-O/权限/框架/敏感字符串 / iOS IPA analysis
+- GUI/TUI/CLI 全面支持新模块和新功能 / Full GUI/TUI/CLI integration for all new features
+- 新增 32 个单元测试（585 总测试数）/ 32 new tests (585 total)
+
+### Changed / 变更
+- 导航菜单从 8 项扩展至 9 项（新增区块链）/ Navigation expanded from 8 to 9 modules
+- 自动扫描新增 CSRF 检测 + IPA 文件类型识别 / Auto scanner adds CSRF detection + IPA file type
+
+---
+
 ## [1.0.0] - 2026-03-30
 
 ### Fixed / 修复

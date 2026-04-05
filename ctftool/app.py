@@ -18,6 +18,7 @@ from textual.widgets import (
 from ctftool import __version__
 from ctftool.ui.screens import (
     AutoScanScreen,
+    BlockchainScreen,
     CryptoScreen,
     ForensicsScreen,
     MiscScreen,
@@ -43,9 +44,10 @@ class CTFToolApp(App):
         Binding("2", "open_web", "Web安全", show=True),
         Binding("3", "open_forensics", "取证", show=True),
         Binding("4", "open_reverse", "逆向", show=True),
-        Binding("5", "open_pwn", "Pwn", show=True),
-        Binding("6", "open_misc", "杂项", show=True),
-        Binding("7", "open_rsa", "RSA", show=True),
+        Binding("5", "open_blockchain", "区块链", show=True),
+        Binding("6", "open_pwn", "Pwn", show=True),
+        Binding("7", "open_misc", "杂项", show=True),
+        Binding("8", "open_rsa", "RSA", show=True),
         Binding("0", "open_autoscan", "自动扫描", show=True),
         Binding("q", "quit", "退出", show=True),
     ]
@@ -55,6 +57,7 @@ class CTFToolApp(App):
         "web": WebScreen,
         "forensics": ForensicsScreen,
         "reverse": ReverseScreen,
+        "blockchain": BlockchainScreen,
         "pwn": PwnScreen,
         "misc": MiscScreen,
         "rsa": RSAScreen,
@@ -77,13 +80,14 @@ class CTFToolApp(App):
                     ListItem(Label(" [2] 🌐 Web 安全"), id="nav-web"),
                     ListItem(Label(" [3] 🔎 取证分析"), id="nav-forensics"),
                     ListItem(Label(" [4] ⚙ 逆向工程"), id="nav-reverse"),
-                    ListItem(Label(" [5] 💥 Pwn"), id="nav-pwn"),
-                    ListItem(Label(" [6] 🧩 杂项工具"), id="nav-misc"),
-                    ListItem(Label(" [7] 🔑 RSA 攻击"), id="nav-rsa"),
+                    ListItem(Label(" [5] ⛓ 区块链"), id="nav-blockchain"),
+                    ListItem(Label(" [6] 💥 Pwn"), id="nav-pwn"),
+                    ListItem(Label(" [7] 🧩 杂项工具"), id="nav-misc"),
+                    ListItem(Label(" [8] 🔑 RSA 攻击"), id="nav-rsa"),
                     id="nav-list",
                 )
                 yield Static("─" * 24)
-                yield Static(" 快捷键: 数字 0-7")
+                yield Static(" 快捷键: 数字 0-8")
                 yield Static(" 退出: Q")
             with Vertical(id="main-content"):
                 yield Static(WELCOME_TEXT.format(ver=__version__), id="welcome")
@@ -100,6 +104,7 @@ class CTFToolApp(App):
             "nav-web": "web",
             "nav-forensics": "forensics",
             "nav-reverse": "reverse",
+            "nav-blockchain": "blockchain",
             "nav-pwn": "pwn",
             "nav-misc": "misc",
             "nav-rsa": "rsa",
@@ -119,6 +124,9 @@ class CTFToolApp(App):
 
     def action_open_reverse(self):
         self.push_screen("reverse")
+
+    def action_open_blockchain(self):
+        self.push_screen("blockchain")
 
     def action_open_pwn(self):
         self.push_screen("pwn")

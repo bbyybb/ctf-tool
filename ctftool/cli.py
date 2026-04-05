@@ -52,6 +52,7 @@ _WEB_ACTIONS = {
     'detect_svn_leak', 'detect_ds_store', 'detect_backup_files',
     'detect_env_leak', 'detect_graphql', 'detect_host_injection', 'detect_jsonp',
     'detect_swagger', 'sqli_auto_exploit', 'sqli_time_blind', 'dir_listing_crawl',
+    'detect_csrf', 'file_upload_helper',
 }
 
 _FORENSICS_ACTIONS = {
@@ -77,6 +78,7 @@ _REVERSE_ACTIONS = {
     'detect_packer', 'list_imports_exports',
     'analyze_apk', 'analyze_dotnet', 'analyze_go_binary',
     'yara_scan', 'deobfuscate_strings', 'analyze_rust_binary',
+    'analyze_ipa',
 }
 
 _PWN_ACTIONS = {
@@ -114,6 +116,15 @@ _MISC_ACTIONS = {
     'ebcdic_to_ascii', 'ascii_to_ebcdic',
 }
 
+_BLOCKCHAIN_ACTIONS = {
+    'analyze_contract', 'detect_reentrancy', 'detect_integer_overflow',
+    'detect_tx_origin', 'detect_selfdestruct', 'detect_unchecked_call',
+    'abi_decode', 'abi_encode', 'selector_lookup',
+    'disasm_bytecode', 'storage_layout_helper',
+    'flashloan_template', 'reentrancy_exploit_template',
+    'evm_puzzle_helper', 'common_patterns',
+}
+
 
 def _highlight_flags(text: str) -> str:
     """高亮显示 flag"""
@@ -124,10 +135,16 @@ def _highlight_flags(text: str) -> str:
 
 
 def _record_and_print(module: str, action: str, input_text: str, result: str):
-    """记录操作历史并输出结果"""
-    flags = flag_finder.search(result)
+    """记录操作历史并输出结果，自动检测 Flag"""
+    flags = flag_finder.search_with_decode(result)
     history.add(module, action, input_text, result, flags)
     print(_highlight_flags(result))
+    if flags:
+        print(f"\n\033[1;33m{'=' * 50}\033[0m")
+        print(f"\033[1;32m[!] {t('msg.flag_auto_found')} ({len(flags)}):\033[0m")
+        for f in flags:
+            print(f"    \033[1;32m>> {f}\033[0m")
+        print(f"\033[1;33m{'=' * 50}\033[0m")
 
 
 def cmd_crypto(args):
@@ -232,6 +249,25 @@ def cmd_reverse(args):
         result = f"{t('msg.error_prefix')}: {e}"
 
     _record_and_print("reverse", action, args.filepath or "", result)
+
+
+def cmd_blockchain(args):
+    from ctftool.modules.blockchain import BlockchainModule
+    blockchain = BlockchainModule()
+    action = args.action.replace('-', '_')
+
+    if action not in _BLOCKCHAIN_ACTIONS:
+        print(f"{t('msg.unknown_action')}: {action}")
+        return
+
+    try:
+        result = getattr(blockchain, action)(args.input or "")
+    except (ValueError, IndexError, TypeError) as e:
+        result = f"{t('msg.param_error')}: {e}"
+    except Exception as e:
+        result = f"{t('msg.error_prefix')}: {e}"
+
+    _record_and_print("blockchain", action, args.input or "", result)
 
 
 def cmd_pwn(args):
@@ -448,6 +484,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_reverse.add_argument('action', help='操作')
     p_reverse.add_argument('filepath', help='文件路径')
     p_reverse.set_defaults(func=cmd_reverse)
+
+    # blockchain
+    p_bc = sub.add_parser('blockchain', help='区块链安全')
+    p_bc.add_argument('action', help='操作')
+    p_bc.add_argument('input', nargs='?', default='', help='输入')
+    p_bc.set_defaults(func=cmd_blockchain)
 
     # pwn
     p_pwn = sub.add_parser('pwn', help='Pwn')

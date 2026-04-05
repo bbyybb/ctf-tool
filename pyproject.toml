@@ -1,6 +1,6 @@
 [project]
 name = "ctf-tool"
-version = "1.0.0"
+version = "1.1.0"
 description = "All-in-one CTF toolkit with GUI"
 readme = "README.md"
 license = {text = "MIT"}
