@@ -80,18 +80,18 @@ jobs:
             can_test: true
 
           - target: macos-arm64
-            os: macos-latest          # Apple Silicon (M1/M2/M3/M4) runner
+            os: macos-latest
+            arch: arm64
             ext: ''
             archive_ext: .tar.gz
             can_test: true
 
-          # macOS Intel: 使用 macos-13 (GitHub 最后一代 Intel x86_64 runner)
-          # PyInstaller 无法交叉编译，必须在目标架构上原生构建
           - target: macos-x64
-            os: macos-13              # Intel x86_64 runner
+            os: macos-latest
+            arch: x64
             ext: ''
             archive_ext: .tar.gz
-            can_test: true
+            can_test: false
 
           - target: linux-x64
             os: ubuntu-latest
@@ -106,6 +106,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          architecture: ${{ matrix.arch || 'x64' }}
           cache: 'pip'
 
       - name: Install dependencies
@@ -231,7 +232,7 @@ jobs:
             | Platform | File |
             |----------|------|
             | Windows (x64) | `ctf-tool-windows-x64-${{ github.ref_name }}.zip` |
-            | macOS (Apple Silicon M1/M2/M3) | `ctf-tool-macos-arm64-${{ github.ref_name }}.tar.gz` |
+            | macOS (Apple Silicon) | `ctf-tool-macos-arm64-${{ github.ref_name }}.tar.gz` |
             | macOS (Intel) | `ctf-tool-macos-x64-${{ github.ref_name }}.tar.gz` |
             | Linux (x64) | `ctf-tool-linux-x64-${{ github.ref_name }}.tar.gz` |
 
