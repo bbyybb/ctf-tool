@@ -712,6 +712,7 @@ class WebPanel(ModulePanel):
         PAYLOAD_GEN = {'generate_payload', 'gen_sqli', 'gen_xss', 'gen_ssti'}
         CONFIG_INPUT = {'configure', 'parse_curl'}
         DOMAIN_INPUT = {'subdomain_enum'}
+        SOURCE_INPUT = {'code_audit'}
 
         # 主输入框提示
         if action in NO_INPUT:
@@ -719,16 +720,23 @@ class WebPanel(ModulePanel):
         elif action in JWT_INPUT:
             self.input_text.setPlaceholderText("JWT Token (eyJhbGci...)")
         elif action in PAYLOAD_GEN:
-            self.input_text.setPlaceholderText("Payload 类型 (sqli/xss/ssti/lfi/cmdi) | 或留空使用默认")
+            self.input_text.setPlaceholderText(
+                "Payload 类型 (sqli/xss/ssti/lfi/cmdi)")
         elif action in CONFIG_INPUT:
             self.input_text.setPlaceholderText("curl 命令 | curl command")
         elif action in DOMAIN_INPUT:
             self.input_text.setPlaceholderText("域名 (如 example.com) | Domain")
+        elif action in SOURCE_INPUT:
+            self.input_text.setPlaceholderText(
+                "粘贴源代码 (PHP/Python/Node/Java) | Paste source code")
         else:
-            self.input_text.setPlaceholderText("URL (如 http://target.com/?id=1)")
+            self.input_text.setPlaceholderText(
+                "URL (如 http://target.com/?id=1)")
 
         # curl/headers/data 输入框：只在 URL 检测类操作时显示
-        show_web_params = action not in (NO_INPUT | JWT_INPUT | PAYLOAD_GEN | CONFIG_INPUT | DOMAIN_INPUT)
+        hide_params = (NO_INPUT | JWT_INPUT | PAYLOAD_GEN
+                       | CONFIG_INPUT | DOMAIN_INPUT | SOURCE_INPUT)
+        show_web_params = action not in hide_params
         self.curl_input.setVisible(show_web_params)
         self.headers_input.setVisible(show_web_params)
         self.data_input.setVisible(show_web_params)
@@ -855,9 +863,15 @@ class ForensicsPanel(ModulePanel):
         if not action:
             return
 
-        NEED_EXTRA = {'file_diff', 'zip_crack', 'rar_crack', 'lsb_encode', 'hex_view', 'steghide_extract'}
+        NEED_EXTRA = {'file_diff', 'zip_crack', 'rar_crack',
+                      'lsb_encode', 'hex_view', 'steghide_extract'}
         self.extra_input.setVisible(action in NEED_EXTRA)
         self._extra_label.setVisible(action in NEED_EXTRA)
+        if action == 'tool_cheatsheet':
+            self.input_text.setPlaceholderText(
+                "无需输入 | No input needed")
+        else:
+            self.input_text.setPlaceholderText(self.input_placeholder)
 
         hints = {
             'file_diff': "第二个文件路径 | Second file path",
@@ -870,6 +884,9 @@ class ForensicsPanel(ModulePanel):
         self.extra_input.setPlaceholderText(hints.get(action, ""))
 
     def _execute(self, action):
+        if action == 'tool_cheatsheet':
+            self._run_async(self._do, action, "", "")
+            return
         filepath = self.get_input()
         if not filepath:
             self._on_result(t("msg.enter_file"))
@@ -880,6 +897,8 @@ class ForensicsPanel(ModulePanel):
     def _do(self, action, filepath, extra):
         from ctftool.modules.forensics import ForensicsModule
         f = ForensicsModule()
+        if action == "tool_cheatsheet":
+            return f.tool_cheatsheet()
         if action == "file_diff":
             return f.file_diff(filepath, extra) if extra else t("msg.need_file2")
         if action == "zip_crack":
@@ -932,6 +951,8 @@ class ReversePanel(ModulePanel):
         self.offset_input.setPlaceholderText(t("hint.offset"))
         self.params_layout.addWidget(self.offset_input, 0, 1)
 
+    NO_FILE = {'tool_cheatsheet'}
+
     def _on_action_changed(self, index):
         action = self.action_combo.currentData()
         if not action:
@@ -939,8 +960,16 @@ class ReversePanel(ModulePanel):
         need_offset = action == 'disassemble'
         self.offset_input.setVisible(need_offset)
         self._offset_label.setVisible(need_offset)
+        if action in self.NO_FILE:
+            self.input_text.setPlaceholderText(
+                "无需输入 | No input needed")
+        else:
+            self.input_text.setPlaceholderText(self.input_placeholder)
 
     def _execute(self, action):
+        if action in self.NO_FILE:
+            self._run_async(self._do, action, "", "")
+            return
         filepath = self.get_input()
         if not filepath:
             self._on_result(t("msg.enter_file"))
@@ -951,6 +980,8 @@ class ReversePanel(ModulePanel):
     def _do(self, action, filepath, offset_str):
         from ctftool.modules.reverse import ReverseModule
         r = ReverseModule()
+        if action == "tool_cheatsheet":
+            return r.tool_cheatsheet()
         offset = int(offset_str, 16) if offset_str else 0
         if action == "extract_strings_ascii":
             return r.extract_strings_from_binary(filepath, encoding="ascii")

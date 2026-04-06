@@ -464,6 +464,11 @@ class ForensicsScreen(ModuleScreen):
         if action == Select.BLANK:
             self._set_output(t("msg.select_action"))
             return
+        if action == 'tool_cheatsheet':
+            self._set_output(t("msg.processing"))
+            self.run_worker(
+                partial(self._do_forensics, action, "", ""), thread=True)
+            return
         filepath = self._get_input()
         if not filepath:
             self._set_output(t("msg.enter_file"))
@@ -476,6 +481,10 @@ class ForensicsScreen(ModuleScreen):
         from ctftool.modules.forensics import ForensicsModule
         forensics = ForensicsModule()
         try:
+            if action == "tool_cheatsheet":
+                result = forensics.tool_cheatsheet()
+                self.app.call_from_thread(self._set_output, result)
+                return
             if action == "file_diff":
                 if not extra:
                     result = t("msg.need_file2")
@@ -537,6 +546,11 @@ class ReverseScreen(ModuleScreen):
         if action == Select.BLANK:
             self._set_output(t("msg.select_action"))
             return
+        if action == 'tool_cheatsheet':
+            self._set_output(t("msg.processing"))
+            self.run_worker(
+                partial(self._do_reverse, action, "", ""), thread=True)
+            return
         filepath = self._get_input()
         if not filepath:
             self._set_output(t("msg.enter_file"))
@@ -549,6 +563,10 @@ class ReverseScreen(ModuleScreen):
         from ctftool.modules.reverse import ReverseModule
         reverse = ReverseModule()
         try:
+            if action == "tool_cheatsheet":
+                result = reverse.tool_cheatsheet()
+                self.app.call_from_thread(self._set_output, result)
+                return
             offset = int(offset_str, 16) if offset_str else 0
             if action == "analyze_binary":
                 result = reverse.analyze_binary(filepath)
