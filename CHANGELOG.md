@@ -6,6 +6,20 @@ All notable changes will be documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.1.1] - 2026-04-06
+
+### Fixed / 修复
+- **GUI**: 自动扫描面板切换"文件/文本"模式时 curl/Headers/POST 区域正确隐藏 / Auto scan panel hides curl/Headers/POST when switching to File/Text mode
+- **GUI**: WebPanel curl 解析按钮在非 URL 操作下正确隐藏 / WebPanel parse-curl button hides for non-URL actions
+- **GUI**: 自动扫描面板输入框 placeholder 根据扫描类型动态切换 / Dynamic placeholder for scan type
+
+### Added / 新增
+- **GUI**: Flag 自动搜索增强 — CLI/GUI/TUI 输出末尾自动追加 Flag 发现提示 / Auto flag detection hint appended to output
+- **GUI**: 自定义 Flag 弹窗展示内置 31 个格式 + 通用模式说明（可折叠）/ Flag config dialog shows built-in patterns
+- **Web**: detect_lfi/cmdi/ssti/xxe 漏洞确认但未找到 Flag 时给出路径调整提示 / Hint when vuln confirmed but flag not found in default paths
+
+---
+
 ## [1.1.0] - 2026-04-06
 
 ### Added / 新增

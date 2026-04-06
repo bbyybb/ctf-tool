@@ -1,8 +1,8 @@
 # CTF-Tool Usage Guide / 操作手册
 
-> CTF-Tool v1.1.0 — All-in-one CTF detection & flag discovery tool
+> CTF-Tool v1.1.1 — All-in-one CTF detection & flag discovery tool
 >
-> CTF-Tool v1.1.0 — 全场景 CTF 检测与 Flag 发现工具
+> CTF-Tool v1.1.1 — 全场景 CTF 检测与 Flag 发现工具
 
 ---
 

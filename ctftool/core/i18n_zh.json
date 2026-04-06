@@ -1942,6 +1942,8 @@
   "msg.scan_done": "完成 {0} 项扫描",
   "msg.found_flags": "发现 {0} 个 Flag",
   "msg.flag_auto_found": "自动发现 Flag",
+  "hint.file_path": "输入文件路径或点击「选择文件」",
+  "hint.paste_text": "粘贴密文 / 编码文本",
   "flag.builtin_title": "内置支持的 Flag 格式（点击展开）",
   "flag.generic_pattern": "通用匹配模式",
   "flag.generic_desc": "此模式自动匹配任意 XXX{...} 格式（2-20字符前缀 + 4-200字符内容），无需手动添加。",

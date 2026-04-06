@@ -727,6 +727,7 @@ class WebPanel(ModulePanel):
         self.headers_input.setVisible(show_web_params)
         self.data_input.setVisible(show_web_params)
         self._curl_label.setVisible(show_web_params)
+        self._parse_btn.setVisible(show_web_params)
         self._headers_label.setVisible(show_web_params)
         self._data_label.setVisible(show_web_params)
 
@@ -1418,10 +1419,14 @@ class AutoScanPanel(QWidget):
         self.type_combo.addItem(t("scan.url"), "url")
         self.type_combo.addItem(t("scan.file"), "file")
         self.type_combo.addItem(t("scan.text"), "text")
+        self.type_combo.currentIndexChanged.connect(self._on_type_changed)
         type_row.addWidget(self.type_combo, 1)
         layout.addLayout(type_row)
 
-        # curl 配置（多行输入 + 解析按钮）
+        # curl 配置（多行输入 + 解析按钮）— 仅 URL 模式显示
+        self._curl_widget = QWidget()
+        curl_layout = QVBoxLayout(self._curl_widget)
+        curl_layout.setContentsMargins(0, 0, 0, 0)
         curl_row = QHBoxLayout()
         curl_row.addWidget(QLabel("curl:"))
         self.curl_input = QTextEdit()
@@ -1433,9 +1438,8 @@ class AutoScanPanel(QWidget):
         self._parse_btn.setFixedWidth(80)
         self._parse_btn.clicked.connect(self._parse_curl_to_fields)
         curl_row.addWidget(self._parse_btn)
-        layout.addLayout(curl_row)
-
-        # Headers + POST Data（curl 解析后回显，只读）
+        curl_layout.addLayout(curl_row)
+        # Headers + POST Data
         extra_row = QHBoxLayout()
         extra_row.addWidget(QLabel("Headers:"))
         self.headers_input = QLineEdit()
@@ -1445,7 +1449,8 @@ class AutoScanPanel(QWidget):
         self.data_input = QLineEdit()
         self.data_input.setPlaceholderText("username=admin&password=123")
         extra_row.addWidget(self.data_input, 1)
-        layout.addLayout(extra_row)
+        curl_layout.addLayout(extra_row)
+        layout.addWidget(self._curl_widget)
 
         # 目标输入
         self.target_input = QTextEdit()
@@ -1515,6 +1520,25 @@ class AutoScanPanel(QWidget):
             self.headers_input.setText("; ".join(headers))
         if data:
             self.data_input.setText(data)
+
+    def _on_type_changed(self, index):
+        """切换扫描类型时更新 UI 组件可见性"""
+        scan_type = self.type_combo.currentData()
+        is_url = (scan_type == "url")
+        is_file = (scan_type == "file")
+        # curl/Headers/POST 仅 URL 模式需要
+        self._curl_widget.setVisible(is_url)
+        # 文件选择按钮仅文件模式需要
+        self.file_btn.setVisible(is_file)
+        # 更新输入框提示
+        if is_url:
+            self.target_input.setPlaceholderText("http://target.com/?id=1")
+        elif is_file:
+            self.target_input.setPlaceholderText(
+                t("hint.file_path"))
+        else:
+            self.target_input.setPlaceholderText(
+                t("hint.paste_text"))
 
     def _start_scan(self):
         target = self.target_input.toPlainText().strip()

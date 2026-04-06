@@ -1942,6 +1942,8 @@
   "msg.scan_done": "Completed {0} scans",
   "msg.found_flags": "Found {0} flag(s)",
   "msg.flag_auto_found": "Flag Auto-Detected",
+  "hint.file_path": "Enter file path or click 'Select File'",
+  "hint.paste_text": "Paste ciphertext / encoded text here",
   "flag.builtin_title": "Built-in Supported Formats (click to expand)",
   "flag.generic_pattern": "Generic pattern",
   "flag.generic_desc": "This pattern auto-matches any XXX{...} format (2-20 char prefix + 4-200 char content), no need to add manually.",
