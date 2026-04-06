@@ -164,6 +164,14 @@ If this tool helps you in CTF, consider supporting the author!
 - [Security Policy / 安全政策](SECURITY.md)
 - [Changelog / 变更日志](CHANGELOG.md)
 
+## Antivirus Notice / 杀毒软件说明
+
+> **This tool may be flagged by antivirus software.** This is a false positive. As a CTF security tool, the source code contains attack payload strings (SQLi, XSS, webshell templates, etc.) for educational and testing purposes. These strings are **never executed** — they are only displayed as reference text. This is the same reason tools like sqlmap, Metasploit, and Burp Suite trigger antivirus alerts.
+>
+> **本工具可能被杀毒软件误报。** 作为 CTF 安全工具，源码中包含攻击载荷字符串（SQL 注入、XSS、Webshell 模板等）用于教学和测试目的。这些字符串**不会被执行** — 仅作为参考文本输出。这与 sqlmap、Metasploit 等安全工具被误报是同一原因。
+>
+> **Solution / 解决方案**: Add the project directory to your antivirus exclusion list. / 将项目目录添加到杀毒软件白名单。
+
 ## License / 许可
 
 [MIT](LICENSE) - Copyright (c) 2026 CTF-Tool Contributors
