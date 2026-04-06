@@ -14,6 +14,7 @@ Do not use against systems without explicit permission.
 
 | Version / 版本 | Supported / 支持 |
 |---|---|
+| 1.1.x | Yes |
 | 1.0.x | Yes |
 | < 1.0 | No |
 

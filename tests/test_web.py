@@ -365,6 +365,64 @@ class TestFileUploadHelper:
         assert "Content-Type" in result
 
 
+class TestCodeAudit:
+    """测试源码审计"""
+
+    def setup_method(self):
+        self.web = WebModule(timeout=2)
+
+    def test_code_audit_php_lfi(self):
+        php = '<?php include $_GET["file"]; ?>'
+        result = self.web.code_audit(php)
+        assert "LFI" in result or "File Inclusion" in result
+
+    def test_code_audit_php_strpos(self):
+        php = '<?php if(!strpos($_GET["x"],"flag")) include $_GET["x"]; ?>'
+        result = self.web.code_audit(php)
+        assert "strpos" in result
+
+    def test_code_audit_python_ssti(self):
+        py = 'from flask import *\nrender_template_string(request.args.get("t"))'
+        result = self.web.code_audit(py)
+        assert "SSTI" in result or "Template" in result
+
+    def test_code_audit_empty(self):
+        result = self.web.code_audit("")
+        assert isinstance(result, str)
+
+    def test_xxe_payload_helper(self):
+        result = self.web.xxe_payload_helper()
+        assert "XXE" in result and "file://" in result
+
+    def test_ssrf_payload_helper(self):
+        result = self.web.ssrf_payload_helper()
+        assert "SSRF" in result and "127.0.0.1" in result
+
+    def test_waf_bypass_helper(self):
+        result = self.web.waf_bypass_helper()
+        assert "WAF" in result and "SQL" in result
+
+
+class TestForensicsCheatsheet:
+    def test_tool_cheatsheet(self):
+        from ctftool.modules.forensics import ForensicsModule
+        f = ForensicsModule()
+        result = f.tool_cheatsheet()
+        assert "steghide" in result.lower()
+        assert "binwalk" in result.lower()
+        assert "volatility" in result.lower()
+
+
+class TestReverseCheatsheet:
+    def test_tool_cheatsheet(self):
+        from ctftool.modules.reverse import ReverseModule
+        r = ReverseModule()
+        result = r.tool_cheatsheet()
+        assert "gdb" in result.lower()
+        assert "objdump" in result.lower()
+        assert "ROPgadget" in result
+
+
 class TestSqliTimeBlind:
     """测试 sqli_time_blind（不可达 URL 模式）"""
 

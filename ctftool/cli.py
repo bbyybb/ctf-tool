@@ -53,6 +53,7 @@ _WEB_ACTIONS = {
     'detect_env_leak', 'detect_graphql', 'detect_host_injection', 'detect_jsonp',
     'detect_swagger', 'sqli_auto_exploit', 'sqli_time_blind', 'dir_listing_crawl',
     'detect_csrf', 'file_upload_helper',
+    'code_audit', 'xxe_payload_helper', 'ssrf_payload_helper', 'waf_bypass_helper',
 }
 
 _FORENSICS_ACTIONS = {
@@ -69,6 +70,7 @@ _FORENSICS_ACTIONS = {
     'steghide_extract', 'zsteg_scan', 'blind_watermark_extract',
     'apng_extract', 'sstv_decode_helper',
     'stego_full_scan', 'file_carve_precise', 'memory_forensics_enhanced',
+    'tool_cheatsheet',
 }
 
 _REVERSE_ACTIONS = {
@@ -78,7 +80,7 @@ _REVERSE_ACTIONS = {
     'detect_packer', 'list_imports_exports',
     'analyze_apk', 'analyze_dotnet', 'analyze_go_binary',
     'yara_scan', 'deobfuscate_strings', 'analyze_rust_binary',
-    'analyze_ipa',
+    'analyze_ipa', 'tool_cheatsheet',
 }
 
 _PWN_ACTIONS = {

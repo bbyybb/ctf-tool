@@ -346,6 +346,10 @@ class WebScreen(ModuleScreen):
         ("act.sqli_time_blind", "sqli_time_blind"),
         ("act.detect_csrf", "detect_csrf"),
         ("act.file_upload_helper", "file_upload_helper"),
+        ("act.code_audit", "code_audit"),
+        ("act.xxe_payload_helper", "xxe_payload_helper"),
+        ("act.ssrf_payload_helper", "ssrf_payload_helper"),
+        ("act.waf_bypass_helper", "waf_bypass_helper"),
     ]
 
     def action_run_action(self):
@@ -358,6 +362,8 @@ class WebScreen(ModuleScreen):
         no_input_actions = {
             'deserialize_helper', 'prototype_pollution_helper',
             'race_condition_helper', 'file_upload_helper',
+            'xxe_payload_helper', 'ssrf_payload_helper',
+            'waf_bypass_helper',
         }
         if not text and action not in no_input_actions:
             self._set_output(t("msg.enter_target"))
@@ -371,6 +377,8 @@ class WebScreen(ModuleScreen):
         no_input_actions = {
             'deserialize_helper', 'prototype_pollution_helper',
             'race_condition_helper', 'file_upload_helper',
+            'xxe_payload_helper', 'ssrf_payload_helper',
+            'waf_bypass_helper',
         }
         try:
             if action.startswith("gen_"):
@@ -439,6 +447,7 @@ class ForensicsScreen(ModuleScreen):
         ("act.stego_full_scan", "stego_full_scan"),
         ("act.file_carve_precise", "file_carve_precise"),
         ("act.memory_forensics_enhanced", "memory_forensics_enhanced"),
+        ("act.tool_cheatsheet", "tool_cheatsheet"),
     ]
 
     def compose_params(self):
@@ -514,6 +523,7 @@ class ReverseScreen(ModuleScreen):
         ("act.deobfuscate_strings", "deobfuscate_strings"),
         ("act.analyze_rust_binary", "analyze_rust_binary"),
         ("act.analyze_ipa", "analyze_ipa"),
+        ("act.tool_cheatsheet", "tool_cheatsheet"),
     ]
 
     def compose_params(self):

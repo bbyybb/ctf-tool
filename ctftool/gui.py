@@ -657,6 +657,10 @@ class WebPanel(ModulePanel):
         ("act.sqli_time_blind", "sqli_time_blind"),
         ("act.detect_csrf", "detect_csrf"),
         ("act.file_upload_helper", "file_upload_helper"),
+        ("act.code_audit", "code_audit"),
+        ("act.xxe_payload_helper", "xxe_payload_helper"),
+        ("act.ssrf_payload_helper", "ssrf_payload_helper"),
+        ("act.waf_bypass_helper", "waf_bypass_helper"),
     ]
 
     def _setup_params(self):
@@ -701,7 +705,9 @@ class WebPanel(ModulePanel):
         action = self.action_combo.currentData()
         if not action:
             return
-        NO_INPUT = {'prototype_pollution_helper', 'race_condition_helper', 'deserialize_helper', 'file_upload_helper'}
+        NO_INPUT = {'prototype_pollution_helper', 'race_condition_helper',
+                    'deserialize_helper', 'file_upload_helper',
+                    'xxe_payload_helper', 'ssrf_payload_helper', 'waf_bypass_helper'}
         JWT_INPUT = {'jwt_forge_none', 'jwt_crack'}
         PAYLOAD_GEN = {'generate_payload', 'gen_sqli', 'gen_xss', 'gen_ssti'}
         CONFIG_INPUT = {'configure', 'parse_curl'}
@@ -749,7 +755,9 @@ class WebPanel(ModulePanel):
                 data_str = data
                 self.data_input.setText(data_str)
         no_input = ('prototype_pollution_helper', 'race_condition_helper',
-                    'deserialize_helper', 'file_upload_helper')
+                    'deserialize_helper', 'file_upload_helper',
+                    'xxe_payload_helper', 'ssrf_payload_helper',
+                    'waf_bypass_helper')
         if action in no_input:
             self._run_async(self._do, action, "", "", "", "")
         else:
@@ -776,7 +784,9 @@ class WebPanel(ModulePanel):
         if action == "jwt_crack":
             return web.jwt_crack(text)
         no_input = ("prototype_pollution_helper", "race_condition_helper",
-                    "deserialize_helper", "file_upload_helper")
+                    "deserialize_helper", "file_upload_helper",
+                    "xxe_payload_helper", "ssrf_payload_helper",
+                    "waf_bypass_helper")
         if action in no_input:
             return getattr(web, action)()
         # sqli_time_blind 支持进度回调
@@ -830,6 +840,7 @@ class ForensicsPanel(ModulePanel):
         ("act.stego_full_scan", "stego_full_scan"),
         ("act.file_carve_precise", "file_carve_precise"),
         ("act.memory_forensics_enhanced", "memory_forensics_enhanced"),
+        ("act.tool_cheatsheet", "tool_cheatsheet"),
     ]
 
     def _setup_params(self):
@@ -911,6 +922,7 @@ class ReversePanel(ModulePanel):
         ("act.deobfuscate_strings", "deobfuscate_strings"),
         ("act.analyze_rust_binary", "analyze_rust_binary"),
         ("act.analyze_ipa", "analyze_ipa"),
+        ("act.tool_cheatsheet", "tool_cheatsheet"),
     ]
 
     def _setup_params(self):

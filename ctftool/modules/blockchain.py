@@ -1154,17 +1154,20 @@ contract ReentrancyExploit {
     @staticmethod
     def _compute_selector(signature: str) -> str:
         """计算函数选择器 (keccak256 前 4 字节)"""
-        # 规范化：去除空格
         sig = re.sub(r'\s+', '', signature)
-        digest = hashlib.sha3_256(sig.encode('utf-8')).digest()
-        # 注意: Solidity 使用 Keccak-256，不是标准 SHA3-256
-        # Python hashlib 提供的是标准 SHA3-256 (FIPS 202)
-        # 对于 CTF 用途使用标准库实现，实际以太坊使用原始 Keccak
-        # 这里提供近似结果；精确结果需要 pysha3/pycryptodome
         # 检查已知签名表优先
         if sig in SIGNATURE_TO_SELECTOR:
             return SIGNATURE_TO_SELECTOR[sig]
-        return "0x" + digest[:4].hex()
+        # 使用 pycryptodome 的 Keccak-256（与 Solidity 一致）
+        try:
+            from Crypto.Hash import keccak
+            k = keccak.new(digest_bits=256)
+            k.update(sig.encode('utf-8'))
+            return "0x" + k.digest()[:4].hex()
+        except ImportError:
+            # 回退到标准 SHA3-256（结果不同但作为后备）
+            digest = hashlib.sha3_256(sig.encode('utf-8')).digest()
+            return "0x" + digest[:4].hex()
 
     @staticmethod
     def _abi_encode_param(param_type: str, value: str) -> str:

@@ -4010,3 +4010,90 @@ class ForensicsModule:
             lines.append(f"  {indicator} {label}: {count}")
 
         return "\n".join(lines)
+
+    def tool_cheatsheet(self, input: str = "") -> str:
+        """取证/隐写工具命令速查表"""
+        lines = [f"=== {t('for.tool_cheatsheet')} ===", ""]
+
+        lines.append("[1] Steghide (JPEG/BMP steganography)")
+        lines.append("  steghide info image.jpg                    # Check for embedded data")
+        lines.append("  steghide extract -sf image.jpg             # Extract (no password)")
+        lines.append("  steghide extract -sf image.jpg -p ''       # Extract with empty password")
+        lines.append("  steghide extract -sf image.jpg -p secret   # Extract with password")
+        lines.append("  steghide embed -cf cover.jpg -ef secret.txt -p pass  # Embed data")
+
+        lines.append("\n[2] Binwalk (embedded file extraction)")
+        lines.append("  binwalk file.bin                           # Scan for signatures")
+        lines.append("  binwalk -e file.bin                        # Extract embedded files")
+        lines.append("  binwalk -Me file.bin                       # Recursive extraction")
+        lines.append("  binwalk --dd='.*' file.bin                 # Extract all types")
+
+        lines.append("\n[3] Foremost (file carving)")
+        lines.append("  foremost -i disk.img                       # Auto carve all types")
+        lines.append("  foremost -t jpg,png,pdf -i disk.img        # Specific types only")
+
+        lines.append("\n[4] Volatility (memory forensics)")
+        lines.append("  vol.py -f mem.raw imageinfo                # Detect OS profile")
+        lines.append("  vol.py -f mem.raw --profile=X pslist       # Process list")
+        lines.append("  vol.py -f mem.raw --profile=X pstree       # Process tree")
+        lines.append("  vol.py -f mem.raw --profile=X filescan     # Scan for files")
+        lines.append("  vol.py -f mem.raw --profile=X dumpfiles -D out/  # Dump files")
+        lines.append("  vol.py -f mem.raw --profile=X hashdump     # Password hashes")
+        lines.append("  vol.py -f mem.raw --profile=X cmdscan      # CMD history")
+        lines.append("  vol.py -f mem.raw --profile=X netscan      # Network connections")
+        lines.append("  vol.py -f mem.raw --profile=X clipboard    # Clipboard content")
+        lines.append("  vol.py -f mem.raw --profile=X screenshot   # Screenshots")
+
+        lines.append("\n[5] Exiftool (metadata)")
+        lines.append("  exiftool image.jpg                         # View all metadata")
+        lines.append("  exiftool -Comment image.jpg                # View comment field")
+        lines.append("  exiftool -all= image.jpg                   # Remove all metadata")
+        lines.append("  exiftool -Comment='hidden' image.jpg       # Inject comment")
+
+        lines.append("\n[6] Stegsolve (image analysis)")
+        lines.append("  java -jar stegsolve.jar                    # GUI tool")
+        lines.append("  # Analyse -> Channel: R/G/B bit planes 0-7")
+        lines.append("  # Analyse -> Data Extract -> LSB/MSB")
+        lines.append("  # Analyse -> Frame Browser (GIF/APNG)")
+
+        lines.append("\n[7] Zsteg (PNG/BMP LSB)")
+        lines.append("  zsteg image.png                            # Auto scan all channels")
+        lines.append("  zsteg -a image.png                         # All combinations")
+        lines.append("  zsteg image.png -b 1                       # Bit 1 only")
+
+        lines.append("\n[8] Strings / xxd / hexdump")
+        lines.append("  strings file.bin                           # ASCII strings")
+        lines.append("  strings -e l file.bin                      # UTF-16LE strings")
+        lines.append("  xxd file.bin | head -50                    # Hex dump")
+        lines.append("  xxd -r hex.txt > file.bin                  # Hex to binary")
+
+        lines.append("\n[9] Wireshark / tshark (PCAP)")
+        lines.append("  tshark -r capture.pcap                     # Read PCAP")
+        lines.append("  tshark -r capture.pcap -Y 'http'           # Filter HTTP")
+        lines.append("  tshark -r capture.pcap -Y 'tcp.port==80'   # Filter port")
+        lines.append("  tshark -r capture.pcap -T fields -e http.file_data  # Extract data")
+        lines.append("  tshark -r capture.pcap --export-objects http,out/    # Export files")
+
+        lines.append("\n[10] File repair")
+        lines.append("  # PNG: fix header -> 89 50 4E 47 0D 0A 1A 0A")
+        lines.append("  # JPEG: fix header -> FF D8 FF E0")
+        lines.append("  # ZIP: fix header -> 50 4B 03 04")
+        lines.append("  # GIF: fix header -> 47 49 46 38 39 61")
+        lines.append("  # PDF: fix header -> 25 50 44 46")
+        lines.append("  pngcheck -v image.png                      # Validate PNG structure")
+
+        lines.append("\n[11] Audio steganography")
+        lines.append("  sox audio.wav -n spectrogram -o spec.png   # Spectrogram")
+        lines.append("  audacity -> Analyze -> Plot Spectrum        # Frequency analysis")
+        lines.append("  # SSTV: qsstv / RX-SSTV (decode slow-scan TV)")
+        lines.append("  # DTMF: multimon-ng -a DTMF -t wav audio.wav")
+        lines.append("  # Morse: decode by spectrogram pattern")
+
+        lines.append("\n[12] Disk forensics")
+        lines.append("  fdisk -l disk.img                          # Partition table")
+        lines.append("  mmls disk.img                              # Partition layout (sleuthkit)")
+        lines.append("  fls -r -o <offset> disk.img                # List files")
+        lines.append("  icat -o <offset> disk.img <inode> > out    # Extract file by inode")
+        lines.append("  autopsy                                     # GUI forensics suite")
+
+        return "\n".join(lines)

@@ -1,6 +1,6 @@
 # CTF-Tool
 
-> All-in-one CTF toolkit with GUI — Crypto / Web / Forensics / Reverse / Pwn / Misc
+> All-in-one CTF toolkit with GUI — Crypto / Web / Forensics / Reverse / Pwn / Misc / Blockchain
 >
 > 全场景 CTF 竞赛工具箱 — 密码学 / Web / 取证 / 逆向 / Pwn / 杂项
 
@@ -20,6 +20,8 @@
 | **Reverse / 逆向** | PE/ELF analysis, ELF checksec (NX/RELRO/PIE/Canary), PE checksec (DEP/ASLR/CFG/SafeSEH/GS), Disassembly (x86/x64/ARM/MIPS), PE 64-bit auto detect, .pyc decompile, Packer detection (UPX/VMProtect/...), Import/Export table, APK analysis, .NET analysis, Go/Rust binary analysis, YARA scan, String deobfuscation |
 | **Pwn** | De Bruijn pattern (32+64 bit), Buffer overflow, Format string (read/write x86/x64), ROP gadgets with virtual addr, Shellcode (+ custom bad chars), ret2libc/ret2syscall/ret2csu/SROP/Stack pivot/GOT overwrite/IO_FILE/Heap exploit (tcache/fastbin/house_of_force/house_of_orange)/seccomp helper templates, Auto ret2text/ret2shellcode/comprehensive Pwn analysis |
 | **Misc / 杂项** | Morse, Braille, T9, Tap code, Zero-width stego, PHP deserialize, Brainfuck/Ook!/Whitespace, JWT, QR (decode+generate), Barcode, Base100 emoji, DNA cipher, Core values (base-12), Pigpen, Bacon encode, Vigenere auto crack, Wordlist generator (file export), Semaphore, NATO, Leet speak, Baudot, Coord convert, Emoji cipher, Manchester encoding, Color hex decode, Dancing men, Word frequency, Enigma, Pixel extract, Keyboard layout convert, UUencode/XXencode, Quoted-Printable, Audio Morse decode, Piet/Malbolge, EBCDIC |
+
+| **Blockchain / 区块链** | Solidity vuln detection (reentrancy/overflow/tx.origin/selfdestruct/unchecked call), ABI decode/encode, Selector lookup, EVM bytecode disassembly, Storage layout helper, Flash loan/Reentrancy exploit templates, EVM puzzle helper, Common patterns cheatsheet |
 
 **Core / 核心特性:**
 - Auto flag detection with recursive decode / 自动 Flag 检测引擎（递归解码）
@@ -132,7 +134,7 @@ ctf-tool/
 │   │   ├── history.py      # Operation history / 操作历史
 │   │   ├── config.py       # Configuration manager / 统一配置管理
 │   │   └── utils.py        # Utilities / 工具函数
-│   ├── modules/            # 6 CTF modules / 6 大模块
+│   ├── modules/            # 7 CTF modules / 7 大模块
 │   └── ui/                 # TUI components / TUI 组件
 ├── tests/                  # 537 unit tests / 单元测试
 ├── scripts/

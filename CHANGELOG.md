@@ -6,33 +6,37 @@ All notable changes will be documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [1.1.1] - 2026-04-06
-
-### Fixed / 修复
-- **GUI**: 自动扫描面板切换"文件/文本"模式时 curl/Headers/POST 区域正确隐藏 / Auto scan panel hides curl/Headers/POST when switching to File/Text mode
-- **GUI**: WebPanel curl 解析按钮在非 URL 操作下正确隐藏 / WebPanel parse-curl button hides for non-URL actions
-- **GUI**: 自动扫描面板输入框 placeholder 根据扫描类型动态切换 / Dynamic placeholder for scan type
-
-### Added / 新增
-- **GUI**: Flag 自动搜索增强 — CLI/GUI/TUI 输出末尾自动追加 Flag 发现提示 / Auto flag detection hint appended to output
-- **GUI**: 自定义 Flag 弹窗展示内置 31 个格式 + 通用模式说明（可折叠）/ Flag config dialog shows built-in patterns
-- **Web**: detect_lfi/cmdi/ssti/xxe 漏洞确认但未找到 Flag 时给出路径调整提示 / Hint when vuln confirmed but flag not found in default paths
-
----
-
 ## [1.1.0] - 2026-04-06
 
 ### Added / 新增
-- **Blockchain**: 新增区块链安全模块（15 个方法）— Solidity 漏洞检测/ABI 编解码/EVM 反汇编/攻击模板 / New Blockchain module (15 methods): Solidity vuln detection, ABI encode/decode, EVM disasm, exploit templates
+- **Blockchain**: 新增区块链安全模块（15 个方法）— Solidity 漏洞检测/ABI 编解码/EVM 反汇编/攻击模板 / New Blockchain module (15 methods)
+- **Web**: 多语言源码审计 (`code_audit`) — 支持 PHP/Python/Node.js/Java 漏洞检测 + 过滤绕过建议 / Multi-language source code audit
 - **Web**: CSRF 跨站请求伪造检测 (`detect_csrf`) / CSRF detection
-- **Web**: 文件上传绕过辅助 (`file_upload_helper`) — Content-Type/扩展名/图片马/竞争条件 / File upload bypass helper
-- **Reverse**: iOS IPA 文件分析 (`analyze_ipa`) — Info.plist/Mach-O/权限/框架/敏感字符串 / iOS IPA analysis
-- GUI/TUI/CLI 全面支持新模块和新功能 / Full GUI/TUI/CLI integration for all new features
-- 新增 32 个单元测试（585 总测试数）/ 32 new tests (585 total)
+- **Web**: 文件上传绕过辅助 (`file_upload_helper`) / File upload bypass helper
+- **Web**: XXE Payload 速查 (`xxe_payload_helper`) / XXE payload cheatsheet
+- **Web**: SSRF Payload 速查 (`ssrf_payload_helper`) / SSRF payload cheatsheet
+- **Web**: WAF 绕过速查 (`waf_bypass_helper`) / WAF bypass cheatsheet
+- **Reverse**: iOS IPA 文件分析 (`analyze_ipa`) / iOS IPA analysis
+- **Reverse**: 逆向工具命令速查 (`tool_cheatsheet`) — GDB/IDA/Ghidra/Radare2/ROPgadget 等 12 类 / Reverse tool cheatsheet
+- **Forensics**: 取证/隐写工具命令速查 (`tool_cheatsheet`) — Steghide/Binwalk/Volatility 等 12 类 / Forensics tool cheatsheet
+- **Pwn**: auto_ret2text 增强 — 自动跳过条件分支 + ret gadget 栈对齐 + 常见 recvuntil 模式 / Enhanced auto_ret2text
+- **GUI**: Flag 自动搜索增强 — CLI/GUI/TUI 输出末尾自动追加 Flag 发现提示 / Auto flag detection hint
+- **GUI**: 自定义 Flag 弹窗展示内置格式列表（可折叠）/ Flag config dialog shows built-in patterns
+- **GUI**: 自动扫描面板切换模式时组件正确显隐 / Auto scan panel dynamic visibility
+- **Web**: 漏洞确认但未找到 Flag 时给出路径调整提示 (LFI/CMDi/SSTI/XXE) / Vuln confirmed hint
 
 ### Changed / 变更
-- 导航菜单从 8 项扩展至 9 项（新增区块链）/ Navigation expanded from 8 to 9 modules
-- 自动扫描新增 CSRF 检测 + IPA 文件类型识别 / Auto scanner adds CSRF detection + IPA file type
+- 导航菜单从 8 项扩展至 9 项（新增区块链）/ Navigation expanded to 9 modules
+- 默认语言改为英文（检测失败时 fallback 为英文）/ Default language changed to English
+- 自动扫描新增 CSRF 检测 + IPA 文件类型识别 / Auto scanner adds CSRF + IPA
+
+### Fixed / 修复
+- CI: 移除 attribution-check + 添加 QT_QPA_PLATFORM + 升级 codecov v5 + macos-x64 Rosetta 构建
+- 测试: 网络 timeout 统一 2s + mock 外部 API + 全局状态隔离 + Windows pcap 文件锁
+- GUI: WebPanel curl 解析按钮正确隐藏 + BlockchainPanel 文件按钮隐藏 + BlockchainScreen TUI 修复
+- Pwn: auto_pwn_analyze backdoor_target 字典格式兼容
+- 安全: web.py 临时文件 try/finally + flag_finder ReDoS 修复 + analyze_headers/check_robots 离线异常处理
+- 文档: CHANGELOG 结构修复 + README 添加文档链接 + pip install 修正
 
 ---
 
