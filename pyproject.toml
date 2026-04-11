@@ -33,7 +33,7 @@ rar = ["rarfile>=4.1"]
 decompile = ["uncompyle6>=3.9.0"]
 hashext = ["hashpumpy>=1.2.1"]
 all = ["pyzbar>=0.1.9", "rarfile>=4.1", "uncompyle6>=3.9.0", "hashpumpy>=1.2.1"]
-dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4.0"]
+dev = ["pytest>=7.0", "pytest-cov>=7.1.0", "ruff>=0.4.0"]
 
 [project.urls]
 Homepage = "https://github.com/bbyybb/ctf-tool"
