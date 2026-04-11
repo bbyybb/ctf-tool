@@ -15,7 +15,7 @@ dependencies = [
     "Pillow>=10.0.0",
     "pefile>=2023.2.7",
     "capstone>=5.0.0",
-    "scapy>=2.5.0",
+    "scapy>=2.7.0",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
